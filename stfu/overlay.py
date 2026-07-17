@@ -91,8 +91,8 @@ def run_overlay(audio, config):
             last_volume = volume
             last_muted = muted
 
-        except Exception:
-            pass
+        except Exception as e:
+            log.error("Overlay update error: %s", e, exc_info=True)
 
         root.after(cfg.poll_interval_ms, update)
 

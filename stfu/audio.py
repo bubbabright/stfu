@@ -1,5 +1,6 @@
 # stfu/audio.py — Windows audio control via pycaw
 import logging
+import threading
 import time
 from typing import TYPE_CHECKING
 
@@ -20,11 +21,12 @@ class AudioController:
         self._muted = False
         self._action = ""
         self._action_ts = 0.0
+        self._lock = threading.Lock()
 
-    def _get_interface(self):
+        # Initialize COM and cache EndpointVolume once per instance
         comtypes.CoInitialize()
         device = AudioUtilities.GetSpeakers()
-        return device.EndpointVolume
+        self._endpoint = device.EndpointVolume
 
     @property
     def muted(self) -> bool:
@@ -39,14 +41,14 @@ class AudioController:
         return self._action_ts
 
     def get_volume(self) -> int:
-        vol = self._get_interface()
-        return round(vol.GetMasterVolumeLevelScalar() * 100)
+        with self._lock:
+            return round(self._endpoint.GetMasterVolumeLevelScalar() * 100)
 
     def set_volume(self, percent: int) -> int:
         percent = max(self.config.volume.min_val,
                       min(self.config.volume.max_val, percent))
-        vol = self._get_interface()
-        vol.SetMasterVolumeLevelScalar(percent / 100, None)
+        with self._lock:
+            self._endpoint.SetMasterVolumeLevelScalar(percent / 100, None)
         self._action = f"{percent}%"
         self._action_ts = time.time()
         log.info("Volume set to %d%%", percent)
@@ -59,12 +61,12 @@ class AudioController:
         return self.set_volume(self.get_volume() - self.config.volume.step)
 
     def get_mute(self) -> bool:
-        vol = self._get_interface()
-        return bool(vol.GetMute())
+        with self._lock:
+            return bool(self._endpoint.GetMute())
 
     def set_mute(self, muted: bool) -> bool:
-        vol = self._get_interface()
-        vol.SetMute(int(muted), None)
+        with self._lock:
+            self._endpoint.SetMute(int(muted), None)
         self._muted = muted
         self._action = "MUTED" if muted else "UNMUTED"
         self._action_ts = time.time()

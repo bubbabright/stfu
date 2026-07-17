@@ -59,12 +59,12 @@ def main():
     # MCP-only mode
     if args.mcp:
         from stfu.audio import AudioController
-        from stfu.mcp_server import init_mcp, mcp
+        from stfu.mcp_server import create_mcp_server, get_mcp
 
         audio = AudioController(config)
-        init_mcp(audio, config)
+        create_mcp_server(audio, config)
         log.info("Starting MCP server")
-        mcp.run(transport=config.mcp.transport)
+        get_mcp().run(transport=config.mcp.transport)
         return
 
     # Service mode

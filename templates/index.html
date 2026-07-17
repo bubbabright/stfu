@@ -1,13 +1,14 @@
 <!--
   stfu/templates/index.html — Mobile-first volume control UI
-  v4.0 — MQTT captions, slider, buttons
+  v4.1.0 — MQTT captions, slider, buttons, overlay status
 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>STFU — HDTV Volume</title>
+<title>HDTV Volume</title>
+
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
 
@@ -45,13 +46,9 @@ h1 { font-size: 1.4rem; opacity: 0.7; margin-bottom: 10px; }
     background: var(--card); border-radius: 20px;
     padding: 14px; margin: 25px 0;
 }
-
-input[type="range"] {
-    width: 100%; height: 50px; accent-color: var(--accent);
-}
+input[type="range"] { width: 100%; height: 50px; accent-color: var(--accent); }
 
 .buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-
 button {
     font-size: 1.8rem; padding: 22px; border-radius: 18px;
     border: none; background: var(--card); color: var(--text);
@@ -63,7 +60,20 @@ button:active { transform: scale(0.94); background: var(--card-press); }
 
 #status { margin-top: 12px; font-size: 0.9rem; color: var(--muted); min-height: 18px; }
 
-/* CC Crawl */
+/* ── STATUS BAR ── */
+.status-bar {
+    display: flex; justify-content: center; gap: 16px;
+    margin: 12px 0; font-size: 0.75rem; color: var(--muted);
+}
+.status-item { display: flex; align-items: center; gap: 5px; }
+.status-dot {
+    display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    background: #555; transition: background 0.3s;
+}
+.status-dot.live { background: #4ade80; box-shadow: 0 0 6px #4ade80; }
+.status-dot.dead { background: #ff5555; }
+
+/* ── CC CRAWL ── */
 .cc-wrap {
     margin-top: 28px; background: var(--card); border-radius: 16px;
     height: 120px; overflow: hidden; position: relative;
@@ -87,17 +97,24 @@ button:active { transform: scale(0.94); background: var(--card-press); }
 @keyframes cc-rise { to { opacity: 1; transform: translateY(0); } }
 
 .cc-status { margin-top: 6px; font-size: 0.7rem; color: var(--muted); letter-spacing: 0.05em; }
-.cc-dot {
-    display: inline-block; width: 6px; height: 6px; border-radius: 50%;
-    background: #555; margin-right: 5px; vertical-align: middle; transition: background 0.3s;
-}
-.cc-dot.live { background: #4ade80; box-shadow: 0 0 6px #4ade80; }
 </style>
 </head>
 
 <body>
 <div class="container">
     <h1>HDTV Volume Control <span class="version">v{{ version }}</span></h1>
+
+    <!-- Status bar: overlay + MQTT -->
+    <div class="status-bar">
+        <div class="status-item">
+            <span class="status-dot" id="overlay-dot"></span>
+            <span id="overlay-text">overlay&hellip;</span>
+        </div>
+        <div class="status-item">
+            <span class="status-dot" id="cc-dot"></span>
+            <span id="cc-status-text">captions&hellip;</span>
+        </div>
+    </div>
 
     <div id="volume-text" class="volume-display">--%</div>
 
@@ -113,12 +130,13 @@ button:active { transform: scale(0.94); background: var(--card-press); }
 
     <div id="status"></div>
 
+    <!-- CC CRAWL -->
     <div class="cc-wrap">
         <div class="cc-inner" id="cc-inner"></div>
     </div>
     <div class="cc-status">
-        <span class="cc-dot" id="cc-dot"></span>
-        <span id="cc-status-text">waiting for captions&hellip;</span>
+        <span class="cc-dot" id="cc-dot-bottom"></span>
+        <span id="cc-status-text-bottom">waiting for captions&hellip;</span>
     </div>
 </div>
 
@@ -135,8 +153,12 @@ const slider = document.getElementById('volume-slider');
 const muteBtn = document.getElementById('btn-mute');
 const statusEl = document.getElementById('status');
 const ccInner = document.getElementById('cc-inner');
+const overlayDot = document.getElementById('overlay-dot');
+const overlayText = document.getElementById('overlay-text');
 const ccDot = document.getElementById('cc-dot');
 const ccStatusText = document.getElementById('cc-status-text');
+const ccDotBottom = document.getElementById('cc-dot-bottom');
+const ccStatusTextBottom = document.getElementById('cc-status-text-bottom');
 
 function bump() { volumeText.classList.add('bump'); setTimeout(() => volumeText.classList.remove('bump'), 100); }
 function haptic() { if (navigator.vibrate) navigator.vibrate(10); }
@@ -151,6 +173,23 @@ async function fetchVolume() {
         muteBtn.textContent = data.muted ? 'Unmute' : 'Mute';
         muteBtn.classList.toggle('muted', data.muted);
     } catch { setStatus('connection error'); }
+}
+
+async function fetchOverlayStatus() {
+    try {
+        const res = await fetch('/overlay/status');
+        const data = await res.json();
+        if (data.active) {
+            overlayDot.className = 'status-dot live';
+            overlayText.textContent = 'overlay active';
+        } else {
+            overlayDot.className = 'status-dot dead';
+            overlayText.textContent = 'overlay offline';
+        }
+    } catch {
+        overlayDot.className = 'status-dot dead';
+        overlayText.textContent = 'overlay unknown';
+    }
 }
 
 slider.addEventListener('input', () => {
@@ -178,9 +217,12 @@ setInterval(() => {
     const now = Date.now();
     if (now - lastUpdate > POLL_INTERVAL - 50) { lastUpdate = now; fetchVolume(); }
 }, POLL_INTERVAL);
-fetchVolume();
 
-// CC Crawl via MQTT
+fetchVolume();
+fetchOverlayStatus();
+setInterval(fetchOverlayStatus, 10000);
+
+// ── CC Crawl via MQTT ──
 function renderCC() {
     ccInner.innerHTML = '';
     ccBatches.forEach((text, i) => {
@@ -196,6 +238,8 @@ function pushCC(text) {
     renderCC();
     ccDot.classList.add('live');
     ccStatusText.textContent = 'live';
+    ccDotBottom.classList.add('live');
+    ccStatusTextBottom.textContent = 'live';
 }
 </script>
 <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
@@ -212,6 +256,8 @@ mqttClient.on("message", (topic, message) => {
 mqttClient.on("error", () => {
     ccDot.classList.remove('live');
     ccStatusText.textContent = 'reconnecting\u2026';
+    ccDotBottom.classList.remove('live');
+    ccStatusTextBottom.textContent = 'reconnecting\u2026';
 });
 </script>
 

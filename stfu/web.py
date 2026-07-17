@@ -19,7 +19,7 @@ def create_app(audio, config):
 
     mqtt_ws_url = f"{config.mqtt.broker}:{config.mqtt.ws_port}"
 
-@app.route("/")
+    @app.route("/")
     def index():
         return render_template(
             "index.html",

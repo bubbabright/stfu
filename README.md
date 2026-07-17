@@ -103,6 +103,16 @@ nssm remove STFU confirm
 
 Edit `stfu.toml` to customize. All values have sensible defaults.
 
+### Key Sections
+
+- `[volume]` — step size, min/max, default
+- `[web]` — host, port, poll interval
+- `[overlay]` — position, fonts, opacity, duration
+- `[mqtt]` — broker, port, topics
+- `[cc]` — OCR region, thresholds, scan interval
+- `[mcp]` — server name, transport
+- `[log]` — level, rotation, retention
+
 ## MQTT Topics
 
 | Topic | Direction | Purpose |
@@ -118,3 +128,80 @@ Edit `stfu.toml` to customize. All values have sensible defaults.
 - NSSM (for service mode)
 - Tesseract OCR (for captions, optional)
 - Mosquitto broker (for MQTT, optional)
+
+## Development
+
+```bash
+# Install dev dependencies
+pip install -e .[dev]
+
+# Run tests
+python -m pytest tests/
+
+# Lint
+ruff check stfu/
+black stfu/
+```
+
+## Known Issues
+
+- **Audio COM interface recreated on every call** — `AudioController._get_interface()` calls `CoInitialize()` and creates a new `EndpointVolume` for every volume get/set/mute operation. Should cache the interface per thread. See `stfu/audio.py:24`.
+- **MQTT no reconnection** — `CaptionCapture` connects once; broker restart kills caption stream. Needs exponential backoff reconnect logic.
+- **Overlay single Tk instance** — `run_overlay()` creates new `Tk()` each call; only one overlay can run per process. Guard or reuse root.
+- **MCP globals** — `mcp_server.py` uses module-level `_audio`, `_config` globals. Should use FastMCP lifespan or dependency injection.
+- **Busy-wait loops** — `__main__.py:124` and `service.py:74` use `sleep(1)` polling. Use `threading.Event` for clean shutdown.
+- **Config validation** — `config.py:load_config()` applies TOML values via `setattr` without type/range validation.
+- **Bare except handlers** — `overlay.py:94`, `captions.py:80` catch all exceptions silently. At minimum log the error.
+- **Volume default mismatch** — `stfu.toml` has `volume.default = 20` but `config.py` defaults to `50`. Sync them.
+- **SSE endpoint unused** — `web.py:/cc/stream` exists but captions use MQTT. Remove or wire up.
+- **Hardcoded IPs** — MQTT broker IP `192.168.1.215` in config. Use env var or hostname.
+
+## Roadmap
+
+### v1.1 — Stability
+- [ ] Cache pycaw COM interface in `AudioController.__init__`
+- [ ] Add MQTT reconnection with exponential backoff
+- [ ] Replace bare `except:` with specific exception handling + logging
+- [ ] Fix volume default mismatch (config.toml vs config.py)
+- [ ] Add config validation (pydantic or dataclass `__post_init__`)
+- [ ] Replace busy-wait loops with `threading.Event`
+- [ ] Remove unused SSE `/cc/stream` endpoint or connect it
+
+### v1.2 — Observability
+- [ ] Structured logging (JSON) for Loki/Grafana
+- [ ] `/health` endpoint for monitoring
+- [ ] Prometheus metrics (`/metrics`)
+- [ ] Request ID correlation across REST + MQTT
+
+### v1.3 — Features
+- [ ] WebSocket for real-time volume state (replace polling)
+- [ ] Multiple audio endpoint support (select output device)
+- [ ] Per-app volume control via pycaw session API
+- [ ] Caption history in web UI (searchable)
+- [ ] MQTT TLS + auth support
+- [ ] Home Assistant discovery integration
+
+### v1.4 — AI/Automation
+- [ ] MCP server: add `list_devices` tool
+- [ ] MCP server: add `set_device` tool
+- [ ] Voice command intent mapping (e.g., "make it louder" → volume_up)
+- [ ] Scheduled volume profiles (night mode, movie mode)
+- [ ] LLM-driven caption summarization via MCP
+
+### v2.0 — Cross-platform
+- [ ] Linux support (PulseAudio/PipeWire via `pactl` or `wpctl`)
+- [ ] macOS support (CoreAudio via `osascript` or `SwitchAudioSource`)
+- [ ] Docker image for headless deployment
+- [ ] ARM64 builds for Pi/ESP32 edge nodes
+
+## Contributing
+
+1. Fork the repo
+2. Create a feature branch
+3. Make changes with tests
+4. Run `ruff check` and `black --check`
+5. Submit PR
+
+## License
+
+MIT — do what you want.

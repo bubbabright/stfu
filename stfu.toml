@@ -1,0 +1,47 @@
+# stfu.toml — STFU configuration
+# All values below are defaults. Override as needed.
+
+[volume]
+step = 1              # percent per button press
+default = 20          # initial volume on start
+
+[web]
+host = "0.0.0.0"
+port = 5000
+poll_interval_ms = 1000
+
+[overlay]
+enabled = true
+poll_interval_ms = 200
+transient_duration = 3.0
+opacity = 0.78
+font_family = "Segoe UI"
+font_size_mute = 85
+font_size_transient = 72
+
+[mqtt]
+enabled = true
+broker = "192.168.1.215"
+port = 1883
+ws_port = 9001
+topic_captions = "htpc/captions"
+topic_volume_state = "htpc/volume/state"
+topic_volume_set = "htpc/volume/set"
+
+[cc]
+enabled = false
+tesseract_cmd = 'C:\Program Files\Tesseract-OCR\tesseract.exe'
+white_threshold = 500
+pixel_threshold = 200
+scan_interval = 0.5
+
+[mcp]
+enabled = true
+name = "stfu"
+transport = "stdio"
+
+[log]
+level = "INFO"
+file = "logs/stfu.log"
+max_bytes = 5242880
+backup_count = 3

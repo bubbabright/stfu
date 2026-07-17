@@ -1,10 +1,11 @@
 # stfu/web.py — Flask web server
 import logging
 import queue
-import time
 from pathlib import Path
 
 from flask import Flask, Response, jsonify, render_template, request
+
+from stfu import __version__
 
 log = logging.getLogger("stfu.web")
 
@@ -18,12 +19,13 @@ def create_app(audio, config):
 
     mqtt_ws_url = f"{config.mqtt.broker}:{config.mqtt.ws_port}"
 
-    @app.route("/")
+@app.route("/")
     def index():
         return render_template(
             "index.html",
             poll_interval=config.web.poll_interval_ms,
             mqtt_ws_url=mqtt_ws_url,
+            version=__version__,
         )
 
     @app.route("/volume", methods=["GET"])

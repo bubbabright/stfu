@@ -17,6 +17,21 @@ python -m stfu
 
 Open `http://pluto:5000` from any device on the LAN.
 
+## Changelog
+
+### v4.1.0 (2025-07-16)
+**Stability & Version Display**
+- Added version badge to web UI (renders from `stfu/__init__.py`)
+- **Audio**: Cached pycaw COM interface in `AudioController.__init__` with `threading.Lock` (fixes CoInitialize on every call)
+- **Captions**: Added MQTT reconnection with exponential backoff (1s→30s, 10% jitter) + `stop()` method for graceful shutdown
+- **Config**: Full validation via `__post_init__` on all dataclasses; unknown TOML keys now warned; `MQTT_BROKER` env var override
+- **Overlay**: Fixed bare `except:` → logs error with traceback
+- **MCP**: Removed global state; new `create_mcp_server(audio, config)` factory with closure injection
+- **Defaults**: Synced `volume.default = 20` in config.py and stfu.toml
+
+### v4.0.0
+Initial release — web UI, overlay, MQTT captions, MCP server, Windows service support.
+
 ## Commands
 
 | Command | Description |
@@ -129,6 +144,22 @@ Edit `stfu.toml` to customize. All values have sensible defaults.
 - Tesseract OCR (for captions, optional)
 - Mosquitto broker (for MQTT, optional)
 
+## Changelog
+
+### v4.1.0 (2026-07-16)
+**Stability & Config Fixes**
+
+- **Audio**: Cached pycaw COM interface in `AudioController.__init__` + added `threading.Lock` for thread safety (was recreating on every call)
+- **MQTT**: Added exponential backoff reconnection (1s→30s) in `CaptionCapture` with `_stop_event` for graceful shutdown
+- **Config**: Full validation via `__post_init__` on all dataclasses; unknown TOML keys now warned; `MQTT_BROKER` env var override
+- **Config**: Fixed volume default mismatch (now `20` in both `stfu.toml` and `config.py`)
+- **MCP**: Removed global state; new `create_mcp_server(audio, config)` factory with dependency injection
+- **Overlay**: Fixed bare `except: pass` → logs errors with traceback
+- **Web UI**: Version badge displayed (`v{{ version }}`)
+
+### v4.0.0
+- Initial release: web UI, overlay, MQTT captions, MCP server, Windows service
+
 ## Development
 
 ```bash
@@ -145,27 +176,12 @@ black stfu/
 
 ## Known Issues
 
-- **Audio COM interface recreated on every call** — `AudioController._get_interface()` calls `CoInitialize()` and creates a new `EndpointVolume` for every volume get/set/mute operation. Should cache the interface per thread. See `stfu/audio.py:24`.
-- **MQTT no reconnection** — `CaptionCapture` connects once; broker restart kills caption stream. Needs exponential backoff reconnect logic.
 - **Overlay single Tk instance** — `run_overlay()` creates new `Tk()` each call; only one overlay can run per process. Guard or reuse root.
-- **MCP globals** — `mcp_server.py` uses module-level `_audio`, `_config` globals. Should use FastMCP lifespan or dependency injection.
 - **Busy-wait loops** — `__main__.py:124` and `service.py:74` use `sleep(1)` polling. Use `threading.Event` for clean shutdown.
-- **Config validation** — `config.py:load_config()` applies TOML values via `setattr` without type/range validation.
-- **Bare except handlers** — `overlay.py:94`, `captions.py:80` catch all exceptions silently. At minimum log the error.
-- **Volume default mismatch** — `stfu.toml` has `volume.default = 20` but `config.py` defaults to `50`. Sync them.
 - **SSE endpoint unused** — `web.py:/cc/stream` exists but captions use MQTT. Remove or wire up.
-- **Hardcoded IPs** — MQTT broker IP `192.168.1.215` in config. Use env var or hostname.
+- **Per-app volume** — pycaw session API not yet exposed via REST/MCP.
 
 ## Roadmap
-
-### v1.1 — Stability
-- [ ] Cache pycaw COM interface in `AudioController.__init__`
-- [ ] Add MQTT reconnection with exponential backoff
-- [ ] Replace bare `except:` with specific exception handling + logging
-- [ ] Fix volume default mismatch (config.toml vs config.py)
-- [ ] Add config validation (pydantic or dataclass `__post_init__`)
-- [ ] Replace busy-wait loops with `threading.Event`
-- [ ] Remove unused SSE `/cc/stream` endpoint or connect it
 
 ### v1.2 — Observability
 - [ ] Structured logging (JSON) for Loki/Grafana

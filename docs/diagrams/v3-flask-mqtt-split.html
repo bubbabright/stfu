@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HTPC MQTT Architecture v3</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;600;800&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #080c18;
+    color: #e0e8ff;
+    font-family: 'Exo 2', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: 
+      radial-gradient(ellipse at 15% 50%, rgba(0,180,255,0.05) 0%, transparent 60%),
+      radial-gradient(ellipse at 85% 30%, rgba(120,0,255,0.05) 0%, transparent 50%);
+    pointer-events: none;
+  }
+
+  h1 {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.9rem;
+    letter-spacing: 0.3em;
+    color: #4af;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    opacity: 0.7;
+  }
+
+  .version {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.65rem;
+    color: #7c3aed;
+    letter-spacing: 0.2em;
+    margin-bottom: 40px;
+    opacity: 0.5;
+  }
+
+  .diagram {
+    width: 100%;
+    max-width: 960px;
+    position: relative;
+  }
+
+  .node {
+    position: relative;
+    padding: 14px 18px;
+    border-radius: 6px;
+    text-align: center;
+    z-index: 2;
+    animation: fadeIn 0.6s ease both;
+  }
+
+  .node-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.58rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+    opacity: 0.45;
+  }
+
+  .node-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+  }
+
+  .node-sub {
+    font-size: 0.65rem;
+    opacity: 0.45;
+    margin-top: 3px;
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  .node-htpc {
+    background: linear-gradient(135deg, #0d1f3c, #0a2a4a);
+    border: 1px solid #1a6aa0;
+    box-shadow: 0 0 28px rgba(26,106,160,0.3), inset 0 1px 0 rgba(100,200,255,0.1);
+    color: #7dd4fc;
+  }
+
+  .node-broker {
+    background: linear-gradient(135deg, #1a0a2e, #2a0a4a);
+    border: 1px solid #7c3aed;
+    box-shadow: 0 0 40px rgba(124,58,237,0.4), inset 0 1px 0 rgba(200,150,255,0.1);
+    color: #c4b5fd;
+  }
+
+  .node-edge {
+    background: linear-gradient(135deg, #0d2a1a, #0a3a20);
+    border: 1px solid #16a34a;
+    box-shadow: 0 0 22px rgba(22,163,74,0.2), inset 0 1px 0 rgba(100,255,150,0.08);
+    color: #86efac;
+  }
+
+  .node-ocr {
+    background: linear-gradient(135deg, #1f1a0d, #2a220a);
+    border: 1px solid #d97706;
+    box-shadow: 0 0 22px rgba(217,119,6,0.2), inset 0 1px 0 rgba(255,200,100,0.08);
+    color: #fcd34d;
+  }
+
+  .node-gate {
+    background: linear-gradient(135deg, #2a0a0a, #3a0a0a);
+    border: 1px solid #dc2626;
+    box-shadow: 0 0 22px rgba(220,38,38,0.2);
+    color: #fca5a5;
+  }
+
+  /* MAIN LAYOUT */
+  .main-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0;
+    margin: 24px 0;
+    position: relative;
+  }
+
+  .col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    min-width: 180px;
+  }
+
+  .col-broker {
+    min-width: 200px;
+  }
+
+  /* Topics */
+  .broker-topics {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-top: 6px;
+    width: 100%;
+  }
+
+  .topic {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.62rem;
+    padding: 4px 10px;
+    border-radius: 4px;
+    text-align: center;
+  }
+
+  .topic-caption {
+    background: rgba(74,170,255,0.08);
+    border: 1px solid rgba(74,170,255,0.25);
+    color: #7dd4fc;
+  }
+
+  .topic-state {
+    background: rgba(134,239,172,0.08);
+    border: 1px solid rgba(134,239,172,0.25);
+    color: #86efac;
+  }
+
+  .topic-set {
+    background: rgba(252,211,77,0.08);
+    border: 1px solid rgba(252,211,77,0.25);
+    color: #fcd34d;
+  }
+
+  /* Arrows between cols */
+  .arrow-pair {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+  }
+
+  .arrow-line {
+    width: 100%;
+    height: 1.5px;
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .arrow-line::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .arrow-caption-line {
+    background: linear-gradient(to right, transparent, #4aaaf0);
+    animation: pulse-blue 2s ease infinite;
+  }
+
+  .arrow-state-line {
+    background: linear-gradient(to right, transparent, #86efac);
+    animation: pulse-green 2s ease infinite;
+  }
+
+  .arrow-set-line {
+    background: linear-gradient(to left, transparent, #fcd34d);
+    animation: pulse-yellow 2s ease infinite;
+  }
+
+  .arrow-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.58rem;
+    opacity: 0.4;
+    letter-spacing: 0.08em;
+  }
+
+  @keyframes pulse-blue {
+    0%, 100% { opacity: 0.5; } 50% { opacity: 1; }
+  }
+  @keyframes pulse-green {
+    0%, 100% { opacity: 0.4; } 50% { opacity: 0.9; }
+  }
+  @keyframes pulse-yellow {
+    0%, 100% { opacity: 0.4; } 50% { opacity: 0.9; }
+  }
+
+  /* TOP ROW - OCR pipeline */
+  .top-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 16px;
+    margin-bottom: 0;
+    padding-left: 20px;
+  }
+
+  .pipeline-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .pipeline-arrow {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.9rem;
+    color: #fcd34d;
+    opacity: 0.4;
+    align-self: center;
+    margin-top: 14px;
+  }
+
+  .pipe-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.58rem;
+    opacity: 0.35;
+    text-align: center;
+    letter-spacing: 0.08em;
+  }
+
+  /* GATE */
+  .gate-note {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.65rem;
+    color: #fca5a5;
+    border: 1px dashed rgba(220,38,38,0.4);
+    border-radius: 4px;
+    padding: 6px 12px;
+    margin-top: 4px;
+    text-align: center;
+    opacity: 0.8;
+  }
+
+  /* EPHEMERAL NOTE */
+  .ephemeral-note {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.62rem;
+    color: #4aaaf0;
+    border: 1px dashed rgba(74,170,255,0.3);
+    border-radius: 4px;
+    padding: 5px 10px;
+    margin-top: 4px;
+    opacity: 0.7;
+    text-align: center;
+  }
+
+  /* EDGE DEVICES */
+  .edge-devices {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .edge-sub {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.6rem;
+    opacity: 0.4;
+    text-align: center;
+    margin-top: 2px;
+  }
+
+  /* BOTTOM: pycaw */
+  .bottom-row {
+    display: flex;
+    justify-content: flex-start;
+    padding-left: 20px;
+    margin-top: 0;
+  }
+
+  /* VERTICAL connector */
+  .v-line {
+    width: 1px;
+    height: 20px;
+    border-left: 1.5px dashed;
+    margin: 0 auto;
+  }
+  .v-blue { border-color: #4aaaf0; opacity: 0.35; }
+  .v-yellow { border-color: #fcd34d; opacity: 0.35; }
+  .v-green { border-color: #86efac; opacity: 0.35; }
+
+  /* LEGEND */
+  .legend {
+    margin-top: 36px;
+    display: flex;
+    gap: 28px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.65rem;
+    opacity: 0.5;
+  }
+
+  .legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .flow-tag {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.6rem;
+    padding: 2px 7px;
+    border-radius: 3px;
+    opacity: 0.6;
+  }
+  .flow-pub { background: rgba(74,170,255,0.1); color: #7dd4fc; border: 1px solid rgba(74,170,255,0.2); }
+  .flow-sub { background: rgba(134,239,172,0.1); color: #86efac; border: 1px solid rgba(134,239,172,0.2); }
+
+  .tags-row {
+    display: flex;
+    gap: 5px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+
+  .divider {
+    width: 100%;
+    height: 1px;
+    background: linear-gradient(to right, transparent, rgba(124,58,237,0.2), transparent);
+    margin: 8px 0;
+  }
+</style>
+</head>
+<body>
+
+<h1>HTPC · MQTT Architecture</h1>
+<div class="version">v3 · 3 HTPC services · flask serves page · mqtt carries data</div>
+
+<div class="diagram">
+
+  <!-- TOP: OCR Pipeline -->
+  <div class="top-row">
+    <div class="pipeline-step">
+      <div class="node node-ocr" style="min-width:130px; animation-delay:0.05s">
+        <div class="node-label">capture</div>
+        <div class="node-name">mss</div>
+        <div class="node-sub">screen grab</div>
+      </div>
+      <div class="pipe-label">white px delta</div>
+    </div>
+
+    <div class="pipeline-arrow">→</div>
+
+    <div class="pipeline-step">
+      <div class="node node-gate" style="min-width:150px; animation-delay:0.1s">
+        <div class="node-label">gate</div>
+        <div class="node-name">Subscriber Check</div>
+        <div class="node-sub">htpc/captions</div>
+      </div>
+      <div class="gate-note">⛔ no subscribers → tesseract idle</div>
+    </div>
+
+    <div class="pipeline-arrow">→</div>
+
+    <div class="pipeline-step">
+      <div class="node node-ocr" style="min-width:130px; animation-delay:0.15s">
+        <div class="node-label">ocr</div>
+        <div class="node-name">Tesseract</div>
+        <div class="node-sub">white px filter</div>
+      </div>
+      <div class="pipe-label">text only if changed</div>
+    </div>
+  </div>
+
+  <div style="padding-left: 20px; margin: 4px 0 0 65px;">
+    <div class="v-line v-blue"></div>
+  </div>
+
+  <!-- MAIN ROW -->
+  <div class="main-row">
+
+    <!-- HTPC 3 services -->
+    <div class="col" style="gap:8px;">
+
+      <!-- Flask -->
+      <div class="node node-htpc" style="min-width:175px; animation-delay:0.18s; border-color:#38bdf8;">
+        <div class="node-label">http only · one-time</div>
+        <div class="node-name">Flask</div>
+        <div class="node-sub">serves browser UI page</div>
+      </div>
+      <div class="pipe-label" style="opacity:0.3">page load only · then silent</div>
+
+      <div class="v-line v-blue"></div>
+
+      <!-- pycaw -->
+      <div class="node node-htpc" style="min-width:175px; animation-delay:0.22s; border-color:#d97706; box-shadow: 0 0 20px rgba(217,119,6,0.2);">
+        <div class="node-label">pub · sub</div>
+        <div class="node-name">pycaw</div>
+        <div class="node-sub">Windows audio API</div>
+      </div>
+      <div class="tags-row">
+        <span class="flow-tag flow-pub">pub vol/state</span>
+        <span class="flow-tag flow-sub">sub vol/set</span>
+      </div>
+
+      <div class="v-line v-blue"></div>
+
+      <!-- tkinter -->
+      <div class="node node-htpc" style="min-width:175px; animation-delay:0.26s; border-color:#a78bfa; box-shadow: 0 0 20px rgba(167,139,250,0.2);">
+        <div class="node-label">subscriber only</div>
+        <div class="node-name">tkinter</div>
+        <div class="node-sub">CC overlay on screen</div>
+      </div>
+      <div class="tags-row">
+        <span class="flow-tag flow-sub">sub captions</span>
+      </div>
+
+      <div class="v-line v-blue"></div>
+
+      <!-- OCR/mss feeds captions pub -->
+      <div class="node node-ocr" style="min-width:175px; animation-delay:0.28s; padding:10px 14px;">
+        <div class="node-label">publisher</div>
+        <div class="node-name">OCR loop</div>
+        <div class="node-sub">mss + tesseract</div>
+      </div>
+      <div class="tags-row">
+        <span class="flow-tag flow-pub">pub captions</span>
+      </div>
+
+    </div>
+
+    <!-- ARROWS LEFT -->
+    <div class="arrow-pair" style="max-width:100px">
+      <div style="width:100%; display:flex; flex-direction:column; gap:8px;">
+        <div>
+          <div class="arrow-line arrow-caption-line"></div>
+          <div class="arrow-label" style="text-align:right">captions →</div>
+        </div>
+        <div>
+          <div class="arrow-line arrow-state-line"></div>
+          <div class="arrow-label" style="text-align:right">vol/state →</div>
+        </div>
+        <div>
+          <div class="arrow-line arrow-set-line"></div>
+          <div class="arrow-label" style="text-align:left">← vol/set</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BROKER -->
+    <div class="col col-broker">
+      <div class="node node-broker" style="min-width:195px; transform:scale(1.06); animation-delay:0s">
+        <div class="node-label">broker</div>
+        <div class="node-name">Mosquitto</div>
+        <div class="node-sub">Alpine LXC · 192.168.1.215:1883</div>
+      </div>
+      <div class="broker-topics">
+        <div class="topic topic-caption">htpc/captions</div>
+        <div class="topic topic-state">htpc/volume/state</div>
+        <div class="topic topic-set">htpc/volume/set</div>
+      </div>
+    </div>
+
+    <!-- ARROWS RIGHT -->
+    <div class="arrow-pair" style="max-width:100px">
+      <div style="width:100%; display:flex; flex-direction:column; gap:8px;">
+        <div>
+          <div class="arrow-line arrow-caption-line"></div>
+          <div class="arrow-label" style="text-align:right">→ captions</div>
+        </div>
+        <div>
+          <div class="arrow-line arrow-state-line"></div>
+          <div class="arrow-label" style="text-align:right">→ vol/state</div>
+        </div>
+        <div>
+          <div class="arrow-line arrow-set-line"></div>
+          <div class="arrow-label" style="text-align:left">vol/set ←</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EDGE DEVICES -->
+    <div class="col">
+      <div class="edge-devices">
+        <div class="node node-edge" style="min-width:160px; padding:10px 14px; animation-delay:0.3s">
+          <div class="node-label">browser · mqtt.js</div>
+          <div class="node-name">Phone</div>
+          <div class="node-sub">websocket :9001</div>
+        </div>
+        <div class="node node-edge" style="min-width:160px; padding:10px 14px; animation-delay:0.35s">
+          <div class="node-label">browser · mqtt.js</div>
+          <div class="node-name">Tablet</div>
+          <div class="node-sub">websocket :9001</div>
+        </div>
+        <div class="node node-edge" style="min-width:160px; padding:10px 14px; opacity:0.4; border-style:dashed; animation-delay:0.4s">
+          <div class="node-label">any LAN device</div>
+          <div class="node-name">+ more</div>
+          <div class="node-sub">no app install</div>
+        </div>
+      </div>
+      <div class="tags-row" style="margin-top:6px">
+        <span class="flow-tag flow-sub">sub captions</span>
+        <span class="flow-tag flow-sub">sub vol/state</span>
+        <span class="flow-tag flow-pub">pub vol/set</span>
+      </div>
+      <div class="ephemeral-note">CC is ephemeral · not stored<br>display only · no persistence</div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- LEGEND -->
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:#4aaaf0"></div>htpc/captions (ephemeral)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#86efac"></div>htpc/volume/state</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#fcd34d"></div>htpc/volume/set (commands)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#fca5a5"></div>gate: tesseract idle if no subscribers</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#38bdf8"></div>Flask: HTTP only · serves page · then silent</div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HTPC MQTT Architecture</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;600;800&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #0a0e1a;
+    color: #e0e8ff;
+    font-family: 'Exo 2', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: 
+      radial-gradient(ellipse at 20% 50%, rgba(0,180,255,0.06) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 20%, rgba(120,0,255,0.06) 0%, transparent 50%);
+    pointer-events: none;
+  }
+
+  h1 {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 1rem;
+    letter-spacing: 0.3em;
+    color: #4af;
+    text-transform: uppercase;
+    margin-bottom: 48px;
+    opacity: 0.7;
+  }
+
+  .diagram {
+    width: 100%;
+    max-width: 900px;
+    position: relative;
+  }
+
+  /* GRID LAYOUT */
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: auto auto auto;
+    gap: 0;
+    align-items: center;
+    justify-items: center;
+    row-gap: 48px;
+  }
+
+  /* NODES */
+  .node {
+    position: relative;
+    padding: 18px 22px;
+    border-radius: 8px;
+    text-align: center;
+    min-width: 160px;
+    z-index: 2;
+    animation: fadeIn 0.6s ease both;
+  }
+
+  .node-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    opacity: 0.5;
+  }
+
+  .node-name {
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+  }
+
+  .node-sub {
+    font-size: 0.72rem;
+    opacity: 0.5;
+    margin-top: 4px;
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  /* Node types */
+  .node-htpc {
+    background: linear-gradient(135deg, #0d1f3c, #0a2a4a);
+    border: 1px solid #1a6aa0;
+    box-shadow: 0 0 30px rgba(26,106,160,0.3), inset 0 1px 0 rgba(100,200,255,0.1);
+    color: #7dd4fc;
+    animation-delay: 0.1s;
+  }
+
+  .node-broker {
+    background: linear-gradient(135deg, #1a0a2e, #2a0a4a);
+    border: 1px solid #7c3aed;
+    box-shadow: 0 0 40px rgba(124,58,237,0.4), inset 0 1px 0 rgba(200,150,255,0.1);
+    color: #c4b5fd;
+    transform: scale(1.08);
+    animation-delay: 0s;
+  }
+
+  .node-edge {
+    background: linear-gradient(135deg, #0d2a1a, #0a3a20);
+    border: 1px solid #16a34a;
+    box-shadow: 0 0 25px rgba(22,163,74,0.25), inset 0 1px 0 rgba(100,255,150,0.1);
+    color: #86efac;
+    animation-delay: 0.2s;
+  }
+
+  .node-ocr {
+    background: linear-gradient(135deg, #1f1a0d, #2a220a);
+    border: 1px solid #d97706;
+    box-shadow: 0 0 25px rgba(217,119,6,0.25), inset 0 1px 0 rgba(255,200,100,0.1);
+    color: #fcd34d;
+    animation-delay: 0.15s;
+  }
+
+  /* BROKER CENTER */
+  .broker-wrap {
+    grid-column: 2;
+    grid-row: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .broker-topics {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  .topic {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.68rem;
+    padding: 4px 10px;
+    border-radius: 4px;
+    text-align: center;
+  }
+
+  .topic-caption {
+    background: rgba(74,170,255,0.1);
+    border: 1px solid rgba(74,170,255,0.3);
+    color: #7dd4fc;
+  }
+
+  .topic-volume {
+    background: rgba(134,239,172,0.1);
+    border: 1px solid rgba(134,239,172,0.3);
+    color: #86efac;
+  }
+
+  /* HTPC LEFT */
+  .htpc-wrap {
+    grid-column: 1;
+    grid-row: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  /* EDGE RIGHT */
+  .edge-wrap {
+    grid-column: 3;
+    grid-row: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .edge-devices {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  /* SVG ARROWS */
+  .arrows-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+    overflow: visible;
+  }
+
+  .arrow-caption {
+    stroke: #4aaaf0;
+    fill: none;
+    stroke-width: 1.5;
+    stroke-dasharray: 6 3;
+    animation: dash 2s linear infinite;
+  }
+
+  .arrow-volume {
+    stroke: #86efac;
+    fill: none;
+    stroke-width: 1.5;
+    stroke-dasharray: 6 3;
+    animation: dash 2s linear infinite reverse;
+  }
+
+  @keyframes dash {
+    to { stroke-dashoffset: -18; }
+  }
+
+  /* LEGEND */
+  .legend {
+    margin-top: 48px;
+    display: flex;
+    gap: 32px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.7rem;
+    opacity: 0.6;
+  }
+
+  .legend-line {
+    width: 32px;
+    height: 2px;
+    border-top: 2px dashed;
+  }
+
+  .legend-caption { border-color: #4aaaf0; }
+  .legend-volume { border-color: #86efac; }
+
+  /* FLOW LABELS */
+  .flow-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.1em;
+    opacity: 0.5;
+    text-align: center;
+    margin-top: 4px;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* SCREEN SOURCE */
+  .screen-wrap {
+    grid-column: 1;
+    grid-row: 1;
+    animation-delay: 0.05s;
+  }
+
+  .caption-display-wrap {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .arrow-down {
+    width: 1px;
+    height: 24px;
+    border-left: 1.5px dashed;
+    margin: 0 auto;
+  }
+
+  .arrow-down-caption { border-color: #fcd34d; opacity: 0.5; }
+  .arrow-down-blue { border-color: #4aaaf0; opacity: 0.5; }
+  .arrow-down-green { border-color: #86efac; opacity: 0.5; }
+
+  .arrow-label-small {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.58rem;
+    opacity: 0.4;
+    text-align: center;
+    letter-spacing: 0.1em;
+  }
+
+  /* horizontal connectors between columns */
+  .row-connectors {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    pointer-events: none;
+    z-index: 0;
+    position: absolute;
+  }
+</style>
+</head>
+<body>
+
+<h1>HTPC · MQTT Architecture</h1>
+
+<div class="diagram">
+  <div class="grid">
+
+    <!-- Row 1: Sources -->
+    <div class="screen-wrap" style="animation-delay:0.05s">
+      <div class="node node-ocr">
+        <div class="node-label">source</div>
+        <div class="node-name">Screen OCR</div>
+        <div class="node-sub">mss + tesseract</div>
+      </div>
+      <div class="arrow-down arrow-down-caption"></div>
+      <div class="arrow-label-small">white px delta</div>
+    </div>
+
+    <div style="grid-column:2; grid-row:1;"></div>
+
+    <div class="caption-display-wrap" style="animation-delay:0.2s">
+      <div class="node node-edge" style="min-width:140px">
+        <div class="node-label">sink</div>
+        <div class="node-name">CC Display</div>
+        <div class="node-sub">browser / overlay</div>
+      </div>
+      <div class="arrow-down arrow-down-green"></div>
+      <div class="arrow-label-small">subscribe</div>
+    </div>
+
+    <!-- Row 2: Main -->
+    <div class="htpc-wrap">
+      <div class="node node-htpc">
+        <div class="node-label">publisher</div>
+        <div class="node-name">HTPC</div>
+        <div class="node-sub">nircmd · volume</div>
+      </div>
+      <div class="flow-label">pub: htpc/captions<br>sub: htpc/volume</div>
+    </div>
+
+    <div class="broker-wrap">
+      <div class="node node-broker">
+        <div class="node-label">broker</div>
+        <div class="node-name">Mosquitto</div>
+        <div class="node-sub">localhost :1883</div>
+      </div>
+      <div class="broker-topics">
+        <div class="topic topic-caption">htpc/captions →</div>
+        <div class="topic topic-volume">← htpc/volume</div>
+      </div>
+    </div>
+
+    <div class="edge-wrap">
+      <div class="edge-devices">
+        <div class="node node-edge" style="min-width:140px; padding:12px 16px;">
+          <div class="node-label">subscriber</div>
+          <div class="node-name">Phone</div>
+          <div class="node-sub">browser UI</div>
+        </div>
+        <div class="node node-edge" style="min-width:140px; padding:12px 16px;">
+          <div class="node-label">subscriber</div>
+          <div class="node-name">Tablet</div>
+          <div class="node-sub">browser UI</div>
+        </div>
+        <div class="node node-edge" style="min-width:140px; padding:12px 16px; opacity:0.5; border-style:dashed;">
+          <div class="node-label">subscriber</div>
+          <div class="node-name">+ any device</div>
+          <div class="node-sub">LAN only</div>
+        </div>
+      </div>
+      <div class="flow-label">sub: htpc/captions<br>pub: htpc/volume</div>
+    </div>
+
+  </div>
+
+  <!-- SVG arrows overlaid -->
+  <svg class="arrows-svg" viewBox="0 0 900 320" preserveAspectRatio="none" style="position:absolute;top:120px;left:0;height:160px;">
+    <!-- HTPC → Broker (captions) -->
+    <path class="arrow-caption" d="M 200,80 L 370,80" marker-end="url(#arrowBlue)"/>
+    <!-- Broker → Edge (captions) -->
+    <path class="arrow-caption" d="M 530,70 L 690,70" marker-end="url(#arrowBlue)"/>
+    <!-- Edge → Broker (volume) -->
+    <path class="arrow-volume" d="M 690,100 L 530,100" marker-end="url(#arrowGreen)"/>
+    <!-- Broker → HTPC (volume) -->
+    <path class="arrow-volume" d="M 370,100 L 200,100" marker-end="url(#arrowGreen)"/>
+
+    <defs>
+      <marker id="arrowBlue" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+        <path d="M0,0 L6,3 L0,6 Z" fill="#4aaaf0" opacity="0.8"/>
+      </marker>
+      <marker id="arrowGreen" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+        <path d="M0,0 L6,3 L0,6 Z" fill="#86efac" opacity="0.8"/>
+      </marker>
+    </defs>
+  </svg>
+
+</div>
+
+<div class="legend">
+  <div class="legend-item">
+    <div class="legend-line legend-caption"></div>
+    <span>htpc/captions (CC text)</span>
+  </div>
+  <div class="legend-item">
+    <div class="legend-line legend-volume"></div>
+    <span>htpc/volume (commands)</span>
+  </div>
+</div>
+
+</body>
+</html>

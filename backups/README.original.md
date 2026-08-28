@@ -1,6 +1,6 @@
 # stfu — HTPC Volume Control
 
-> Volume control + closed caption for HTPC. No app install need. Any LAN browser work.
+> Volume control + closed captions for the HTPC. No app install required. Any LAN browser works.
 
 ## Quick Start
 
@@ -15,22 +15,22 @@ pip install -r requirements.txt
 python -m stfu
 ```
 
-Open `http://pluto:5000` from any device on LAN.
+Open `http://pluto:5000` from any device on the LAN.
 
 ## Changelog
 
 ### v4.1.0 (2025-07-16)
 **Stability & Version Display**
-- Version badge add to web UI (render from `stfu/__init__.py`)
-- **Audio**: pycaw COM interface cache in `AudioController.__init__` with `threading.Lock` (fix CoInitialize call every time)
-- **Captions**: MQTT reconnect add, exponential backoff (1s→30s, 10% jitter) + `stop()` method for clean shutdown
-- **Config**: Full validate via `__post_init__` on all dataclasses; unknown TOML keys now warn; `MQTT_BROKER` env var override
-- **Overlay**: Fix bare `except:` → now log error with traceback
-- **MCP**: Global state gone; new `create_mcp_server(audio, config)` factory, closure injection
-- **Defaults**: `volume.default = 20` sync in config.py and stfu.toml
+- Added version badge to web UI (renders from `stfu/__init__.py`)
+- **Audio**: Cached pycaw COM interface in `AudioController.__init__` with `threading.Lock` (fixes CoInitialize on every call)
+- **Captions**: Added MQTT reconnection with exponential backoff (1s→30s, 10% jitter) + `stop()` method for graceful shutdown
+- **Config**: Full validation via `__post_init__` on all dataclasses; unknown TOML keys now warned; `MQTT_BROKER` env var override
+- **Overlay**: Fixed bare `except:` → logs error with traceback
+- **MCP**: Removed global state; new `create_mcp_server(audio, config)` factory with closure injection
+- **Defaults**: Synced `volume.default = 20` in config.py and stfu.toml
 
 ### v4.0.0
-First release — web UI, overlay, MQTT captions, MCP server, Windows service support.
+Initial release — web UI, overlay, MQTT captions, MCP server, Windows service support.
 
 ## Commands
 
@@ -74,14 +74,14 @@ First release — web UI, overlay, MQTT captions, MCP server, Windows service su
 
 ## MCP Server
 
-MCP server expose these tools for AI control:
+The MCP server exposes these tools for AI control:
 
-- `get_volume` — read current volume/mute state
-- `set_volume(percent)` — set volume 0-100
-- `volume_up()` — bump up by step
-- `volume_down()` — bump down by step
-- `toggle_mute()` — toggle mute
-- `set_mute(muted)` — set mute direct
+- `get_volume` — Read current volume/mute state
+- `set_volume(percent)` — Set volume 0-100
+- `volume_up()` — Increase by step
+- `volume_down()` — Decrease by step
+- `toggle_mute()` — Toggle mute
+- `set_mute(muted)` — Set mute explicitly
 
 Configure in your MCP client:
 
@@ -116,7 +116,7 @@ nssm remove STFU confirm
 
 ## Configuration
 
-Edit `stfu.toml` to customize. All values got sane defaults.
+Edit `stfu.toml` to customize. All values have sensible defaults.
 
 ### Key Sections
 
@@ -149,16 +149,16 @@ Edit `stfu.toml` to customize. All values got sane defaults.
 ### v4.1.0 (2026-07-16)
 **Stability & Config Fixes**
 
-- **Audio**: pycaw COM interface cache in `AudioController.__init__` + `threading.Lock` add for thread safety (was recreate every call)
-- **MQTT**: Exponential backoff reconnect add (1s→30s) in `CaptionCapture` with `_stop_event` for clean shutdown
-- **Config**: Full validate via `__post_init__` on all dataclasses; unknown TOML keys now warn; `MQTT_BROKER` env var override
-- **Config**: Volume default mismatch fix (now `20` both `stfu.toml` and `config.py`)
-- **MCP**: Global state gone; new `create_mcp_server(audio, config)` factory, dependency injection
-- **Overlay**: Fix bare `except: pass` → now log errors with traceback
-- **Web UI**: Version badge shown (`v{{ version }}`)
+- **Audio**: Cached pycaw COM interface in `AudioController.__init__` + added `threading.Lock` for thread safety (was recreating on every call)
+- **MQTT**: Added exponential backoff reconnection (1s→30s) in `CaptionCapture` with `_stop_event` for graceful shutdown
+- **Config**: Full validation via `__post_init__` on all dataclasses; unknown TOML keys now warned; `MQTT_BROKER` env var override
+- **Config**: Fixed volume default mismatch (now `20` in both `stfu.toml` and `config.py`)
+- **MCP**: Removed global state; new `create_mcp_server(audio, config)` factory with dependency injection
+- **Overlay**: Fixed bare `except: pass` → logs errors with traceback
+- **Web UI**: Version badge displayed (`v{{ version }}`)
 
 ### v4.0.0
-- First release: web UI, overlay, MQTT captions, MCP server, Windows service
+- Initial release: web UI, overlay, MQTT captions, MCP server, Windows service
 
 ## Development
 
@@ -176,10 +176,10 @@ black stfu/
 
 ## Known Issues
 
-- **Overlay single Tk instance** — `run_overlay()` make new `Tk()` each call; only one overlay run per process. Guard or reuse root.
-- **Busy-wait loops** — `__main__.py:124` and `service.py:74` use `sleep(1)` poll. Use `threading.Event` for clean shutdown instead.
-- **SSE endpoint unused** — `web.py:/cc/stream` exist but captions use MQTT. Remove or wire up.
-- **Per-app volume** — pycaw session API not yet expose via REST/MCP.
+- **Overlay single Tk instance** — `run_overlay()` creates new `Tk()` each call; only one overlay can run per process. Guard or reuse root.
+- **Busy-wait loops** — `__main__.py:124` and `service.py:74` use `sleep(1)` polling. Use `threading.Event` for clean shutdown.
+- **SSE endpoint unused** — `web.py:/cc/stream` exists but captions use MQTT. Remove or wire up.
+- **Per-app volume** — pycaw session API not yet exposed via REST/MCP.
 
 ## Roadmap
 
@@ -200,7 +200,7 @@ black stfu/
 ### v1.4 — AI/Automation
 - [ ] MCP server: add `list_devices` tool
 - [ ] MCP server: add `set_device` tool
-- [ ] Voice command intent mapping (eg "make it louder" → volume_up)
+- [ ] Voice command intent mapping (e.g., "make it louder" → volume_up)
 - [ ] Scheduled volume profiles (night mode, movie mode)
 - [ ] LLM-driven caption summarization via MCP
 
@@ -212,9 +212,9 @@ black stfu/
 
 ## Contributing
 
-1. Fork repo
-2. Make feature branch
-3. Change with tests
+1. Fork the repo
+2. Create a feature branch
+3. Make changes with tests
 4. Run `ruff check` and `black --check`
 5. Submit PR
 

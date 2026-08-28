@@ -56,7 +56,7 @@ def main():
     log = logging.getLogger("stfu")
     log.info("STFU starting")
 
-    # MCP-only mode
+    # MCP-only mode — each MCP client owns its own stdio instance, no lock
     if args.mcp:
         from stfu.audio import AudioController
         from stfu.mcp_server import create_mcp_server, get_mcp
@@ -67,13 +67,22 @@ def main():
         get_mcp().run(transport=config.mcp.transport)
         return
 
-    # Service mode
+    # Service mode — service.py acquires its own singleton lock
     if args.service:
         from stfu.service import _service_main
         _service_main()
         return
 
     # Normal mode
+    from stfu.config import acquire_singleton_lock
+
+    try:
+        acquire_singleton_lock(Path(config.log.file).parent / "stfu.lock")
+    except RuntimeError as e:
+        log.error(str(e))
+        print(str(e))
+        sys.exit(1)
+
     from stfu.audio import AudioController
     from stfu.web import create_app
 
@@ -81,16 +90,20 @@ def main():
 
     # Flask web server
     app, cc_queue = create_app(audio, config)
-    flask_thread = threading.Thread(
-        target=lambda: app.run(
-            host=config.web.host,
-            port=config.web.port,
-            debug=False,
-            use_reloader=False,
-            threaded=True,
-        ),
-        daemon=True,
-    )
+
+    def _run_flask():
+        try:
+            app.run(
+                host=config.web.host,
+                port=config.web.port,
+                debug=False,
+                use_reloader=False,
+                threaded=True,
+            )
+        except Exception as e:
+            log.error("Web server failed to start: %s", e, exc_info=True)
+
+    flask_thread = threading.Thread(target=_run_flask, daemon=True)
     flask_thread.start()
     log.info("Web server: http://%s:%d", config.web.host, config.web.port)
     print(f"STFU running: http://{config.web.host}:{config.web.port}")

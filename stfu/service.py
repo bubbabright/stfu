@@ -10,8 +10,9 @@
 import logging
 import sys
 import time
+from pathlib import Path
 
-from stfu.config import load_config
+from stfu.config import acquire_singleton_lock, load_config
 from stfu.audio import AudioController
 from stfu.web import create_app
 
@@ -24,22 +25,32 @@ _STOPPING = False
 def _service_main():
     """Main entry point for service mode."""
     config = load_config()
+
+    try:
+        acquire_singleton_lock(Path(config.log.file).parent / "stfu.lock")
+    except RuntimeError as e:
+        log.error(str(e))
+        raise
+
     audio = AudioController(config)
 
     # Start Flask
     app, cc_queue = create_app(audio, config)
     import threading
 
-    flask_thread = threading.Thread(
-        target=lambda: app.run(
-            host=config.web.host,
-            port=config.web.port,
-            debug=False,
-            use_reloader=False,
-            threaded=True,
-        ),
-        daemon=True,
-    )
+    def _run_flask():
+        try:
+            app.run(
+                host=config.web.host,
+                port=config.web.port,
+                debug=False,
+                use_reloader=False,
+                threaded=True,
+            )
+        except Exception as e:
+            log.error("Web server failed to start: %s", e, exc_info=True)
+
+    flask_thread = threading.Thread(target=_run_flask, daemon=True)
     flask_thread.start()
     log.info("Web server started on %s:%d", config.web.host, config.web.port)
 

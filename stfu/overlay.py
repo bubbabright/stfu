@@ -6,8 +6,20 @@ import tkinter as tk
 log = logging.getLogger("stfu.overlay")
 
 
+HEARTBEAT_INTERVAL_S = 300  # throttle liveness logging so it doesn't spam stfu.log
+
+
 def run_overlay(audio, config):
     """Run transparent fullscreen overlay showing volume/mute status."""
+    try:
+        _run_overlay(audio, config)
+    except Exception as e:
+        log.error("Overlay crashed: %s", e, exc_info=True)
+    finally:
+        log.info("Overlay stopped")
+
+
+def _run_overlay(audio, config):
     cfg = config.overlay
 
     root = tk.Tk()
@@ -49,11 +61,17 @@ def run_overlay(audio, config):
     last_muted = False
     last_action = ""
     last_action_ts = 0.0
+    last_heartbeat = 0.0
 
     def update():
-        nonlocal last_volume, last_muted, last_action, last_action_ts
+        nonlocal last_volume, last_muted, last_action, last_action_ts, last_heartbeat
 
         try:
+            now_hb = time.time()
+            if now_hb - last_heartbeat >= HEARTBEAT_INTERVAL_S:
+                log.info("Overlay alive")
+                last_heartbeat = now_hb
+
             state = audio.get_state()
             volume = state["volume"]
             muted = state["muted"]

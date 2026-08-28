@@ -13,6 +13,32 @@ def _get_env(key: str, default: str) -> str:
 
 CONFIG_PATH = Path(__file__).parent.parent / "stfu.toml"
 
+# Kept open for the life of the process; the OS releases the lock on exit
+# or crash, so there's no stale-lock file to clean up after an ungraceful
+# termination (NSSM kill, power loss, etc).
+_lock_handle = None
+
+
+def acquire_singleton_lock(lock_path: Path) -> None:
+    """Ensure only one stfu instance runs at a time.
+
+    Raises RuntimeError if another instance already holds the lock.
+    Windows-only (msvcrt) — matches the rest of this app.
+    """
+    global _lock_handle
+    import msvcrt
+
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    handle = open(lock_path, "w")
+    try:
+        msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+    except OSError:
+        handle.close()
+        raise RuntimeError(
+            f"Another stfu instance already holds {lock_path} — refusing to start a second one."
+        )
+    _lock_handle = handle  # keep alive for process lifetime
+
 
 def _validate_range(name: str, value: int, min_val: int, max_val: int) -> int:
     if not min_val <= value <= max_val:

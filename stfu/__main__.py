@@ -60,11 +60,13 @@ def main():
     config_path = Path(args.config) if args.config else None
     config = load_config(config_path)
 
+    # Distinct log file per always-on module — each is a separate long-lived
+    # process, and two RotatingFileHandlers on the same file race each other
+    # on rollover (os.rename while the other holds it open).
     if args.night_light_helper:
-        # Distinct log file — this runs as a separate long-lived process from
-        # the main app, and two RotatingFileHandlers on the same file race
-        # each other on rollover (os.rename while the other holds it open).
         config.log.file = str(Path(config.log.file).with_name("stfu_night_light_helper.log"))
+    elif args.overlay_only:
+        config.log.file = str(Path(config.log.file).with_name("stfu_overlay.log"))
 
     setup_logging(config)
     log = logging.getLogger("stfu")

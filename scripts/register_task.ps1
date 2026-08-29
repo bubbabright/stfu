@@ -62,7 +62,8 @@ $action = New-ScheduledTaskAction -Execute $pythonExe -Argument $taskArgs -Worki
 
 $settings = New-ScheduledTaskSettingsSet `
     -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) `
-    -StartWhenAvailable -ExecutionTimeLimit 0
+    -StartWhenAvailable -ExecutionTimeLimit 0 `
+    -MultipleInstances IgnoreNew
 
 Register-ScheduledTask -TaskName $taskName `
     -Action $action -Trigger $trigger -Principal $principal -Settings $settings `

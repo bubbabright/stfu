@@ -24,7 +24,7 @@ if not exist "logs" mkdir logs
 
 echo.
 echo Register STFU's autostart tasks? (web module: at boot, no login required;
-echo overlay + Dark Mode helper: at logon, interactive session)
+echo overlay + Dark Mode/Night Light helper: at logon, interactive session)
 set /p install_tasks="Type 'yes' to install: "
 if /i "%install_tasks%"=="yes" (
     powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\register_task.ps1" -Module web

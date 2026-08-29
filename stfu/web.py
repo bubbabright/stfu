@@ -8,6 +8,7 @@ from pathlib import Path
 from flask import Flask, Response, jsonify, render_template, request
 
 from stfu import __version__
+from stfu.nightlight import NightlightHelperUnavailable
 from stfu.theme import ThemeHelperUnavailable
 
 log = logging.getLogger("stfu.web")
@@ -15,8 +16,8 @@ log = logging.getLogger("stfu.web")
 TEMPLATE_DIR = str(Path(__file__).parent.parent / "templates")
 
 
-def create_app(audio, theme, config):
-    """Create Flask app with injected audio/theme controllers."""
+def create_app(audio, theme, config, nightlight=None):
+    """Create Flask app with injected audio/theme/nightlight controllers."""
     app = Flask(__name__, template_folder=TEMPLATE_DIR)
     cc_queue: queue.Queue = queue.Queue()
 
@@ -30,6 +31,7 @@ def create_app(audio, theme, config):
             mqtt_ws_url=mqtt_ws_url,
             version=__version__,
             theme_enabled=config.theme.enabled,
+            nightlight_enabled=config.nightlight.enabled,
         )
 
     @app.route("/volume", methods=["GET"])
@@ -76,24 +78,35 @@ def create_app(audio, theme, config):
             return jsonify({"active": False})
 
     @app.route("/theme", methods=["GET"])
-    def get_theme():
+    @app.route("/theme/dark-mode", methods=["POST"])
+    def light_dark_theme():
         if not config.theme.enabled:
             return jsonify({"error": "theme control disabled"}), 404
         try:
+            if request.method == "POST":
+                return jsonify({"dark_mode": theme.toggle_dark_mode()})
             return jsonify({"dark_mode": theme.get_dark_mode()})
         except ThemeHelperUnavailable as e:
             log.warning("Theme helper unreachable: %s", e)
             return jsonify({"error": "theme helper unreachable"}), 503
 
-    @app.route("/theme/dark-mode", methods=["POST"])
-    def toggle_dark_mode():
-        if not config.theme.enabled:
-            return jsonify({"error": "theme control disabled"}), 404
+    @app.route("/nightlight", methods=["GET", "POST"])
+    def nightlight_on_off():
+        if not config.nightlight.enabled or nightlight is None:
+            return jsonify({"error": "nightlight disabled"}), 404
         try:
-            return jsonify({"dark_mode": theme.toggle_dark_mode()})
-        except ThemeHelperUnavailable as e:
-            log.warning("Theme helper unreachable: %s", e)
-            return jsonify({"error": "theme helper unreachable"}), 503
+            if request.method == "GET":
+                return jsonify(nightlight.status())
+            data = request.get_json(silent=True) or {}
+            state = data.get("state", "toggle")
+            if state == "toggle":
+                return jsonify(nightlight.toggle())
+            elif state in ("on", "off"):
+                return jsonify(nightlight.set(state == "on"))
+            return jsonify({"error": "state must be on|off|toggle"}), 400
+        except NightlightHelperUnavailable as e:
+            log.warning("Night light helper unreachable: %s", e)
+            return jsonify({"error": "nightlight helper unreachable"}), 503
 
     @app.route("/config", methods=["GET"])
     def get_config():

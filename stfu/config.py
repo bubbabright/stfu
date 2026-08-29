@@ -185,6 +185,15 @@ class ThemeConfig:
 
 
 @dataclass
+class NightLightConfig:
+    enabled: bool = True
+    wnl_path: str = r"C:\Users\Us\win-nightlight-cli\target\release\wnl.exe"
+
+    def __post_init__(self):
+        pass  # path checked at runtime
+
+
+@dataclass
 class MCPConfig:
     enabled: bool = True
     name: str = "stfu"
@@ -215,6 +224,7 @@ class AppConfig:
     mqtt: MQTTConfig = field(default_factory=MQTTConfig)
     cc: CCConfig = field(default_factory=CCConfig)
     theme: ThemeConfig = field(default_factory=ThemeConfig)
+    nightlight: NightLightConfig = field(default_factory=NightLightConfig)
     mcp: MCPConfig = field(default_factory=MCPConfig)
     log: LogConfig = field(default_factory=LogConfig)
 
@@ -231,6 +241,7 @@ VALID_KEYS = {
     "cc": {"enabled", "tesseract_cmd", "capture_region", "white_threshold",
            "pixel_threshold", "scan_interval"},
     "theme": {"enabled", "helper_port", "helper_timeout"},
+    "nightlight": {"enabled", "wnl_path"},
     "mcp": {"enabled", "name", "transport"},
     "log": {"level", "file", "max_bytes", "backup_count"},
 }
@@ -270,7 +281,7 @@ def load_config(path: Path | None = None) -> AppConfig:
 
     cfg = AppConfig()
     # Apply overrides section by section
-    for section_name in ["volume", "web", "overlay", "mqtt", "cc", "theme", "mcp", "log"]:
+    for section_name in ["volume", "web", "overlay", "mqtt", "cc", "theme", "nightlight", "mcp", "log"]:
         section_data = data.get(section_name, {})
         if section_data:
             section_obj = getattr(cfg, section_name)

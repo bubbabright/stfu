@@ -130,6 +130,9 @@ button:active { transform: scale(0.94); background: var(--card-press); }
         {% if theme_enabled %}
         <button id="btn-theme" class="mute-btn">Dark Mode</button>
         {% endif %}
+        {% if nightlight_enabled %}
+        <button id="btn-nightlight" class="mute-btn">Night Light</button>
+        {% endif %}
     </div>
 
     <div id="status"></div>
@@ -241,6 +244,42 @@ if (btnTheme) {
     };
     fetchThemeStatus();
     setInterval(fetchThemeStatus, 10000);
+}
+
+const btnNightlight = document.getElementById('btn-nightlight');
+
+async function fetchNightlightStatus() {
+    if (!btnNightlight) return;
+    try {
+        const res = await fetch('/nightlight');
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        btnNightlight.textContent = data.enabled ? 'Night Light ON' : 'Night Light OFF';
+        btnNightlight.classList.toggle('muted', data.enabled);
+        btnNightlight.classList.remove('offline');
+    } catch {
+        btnNightlight.textContent = 'night light offline';
+        btnNightlight.classList.add('offline');
+    }
+}
+
+if (btnNightlight) {
+    btnNightlight.onclick = async () => {
+        try {
+            const res = await fetch('/nightlight', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ state: 'toggle' })
+            });
+            if (res.ok) haptic();
+            else setStatus('night light failed');
+        } catch {
+            setStatus('night light failed');
+        }
+        fetchNightlightStatus();
+    };
+    fetchNightlightStatus();
+    setInterval(fetchNightlightStatus, 10000);
 }
 
 setInterval(() => {

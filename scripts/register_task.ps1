@@ -9,7 +9,9 @@
 # - overlay / night-light-helper: need the interactive desktop session
 #   (tkinter, HKCU, WM_SETTINGCHANGE are all session-scoped) - at-logon,
 #   the interactive user, same constraint stfu/night_light_helper.py and
-#   stfu/theme.py document.
+#   stfu/theme.py document. night-light-helper serves both Dark Mode
+#   (stfu/theme.py) and Night Light (stfu/nightlight.py) - same session
+#   constraint, same process.
 #
 # Explicit WorkingDirectory and Principal every time - the two things the
 # old ad-hoc overlay Scheduled Task got wrong (blank WorkingDirectory
@@ -52,7 +54,7 @@ switch ($Module) {
         $taskArgs = "-m stfu --night-light-helper"
         $trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
         $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Limited
-        $description = "STFU theme module: Windows Dark Mode control. HKCU/WM_SETTINGCHANGE are session-scoped - needs the interactive desktop session, cannot run under SYSTEM/at-startup."
+        $description = "STFU theme module: Windows Dark Mode + Night Light control. HKCU/WM_SETTINGCHANGE/wnl.exe are session-scoped - needs the interactive desktop session, cannot run under SYSTEM/at-startup."
     }
 }
 

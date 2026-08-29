@@ -42,6 +42,10 @@ enabled = true
 helper_port = 5100     # night-light-helper's listen port
 helper_timeout = 2.0   # seconds; how long web.py waits on the night-light-helper before 503
 
+[nightlight]
+enabled = true
+wnl_path = "C:\\Users\\Us\\win-nightlight-cli\\target\\release\\wnl.exe"
+
 [mcp]
 enabled = true
 name = "stfu"

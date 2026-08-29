@@ -116,12 +116,17 @@ def main():
     from stfu.audio import AudioController
     from stfu.theme import HTTPThemeClient
     from stfu.web import create_app
+    from stfu.nightlight import HTTPNightlightClient
 
     audio = AudioController(config)
     theme = HTTPThemeClient(config)
 
+    nightlight = None
+    if config.nightlight.enabled:
+        nightlight = HTTPNightlightClient(config)
+
     # Flask web server
-    app, cc_queue = create_app(audio, theme, config)
+    app, cc_queue = create_app(audio, theme, config, nightlight=nightlight)
 
     def _run_flask():
         try:

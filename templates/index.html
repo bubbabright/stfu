@@ -57,6 +57,7 @@ button {
 button:active { transform: scale(0.94); background: var(--card-press); }
 .mute-btn { grid-column: span 2; font-size: 1.3rem; }
 .muted { background: var(--accent); color: white; }
+.offline { opacity: 0.5; }
 
 #status { margin-top: 12px; font-size: 0.9rem; color: var(--muted); min-height: 18px; }
 
@@ -126,6 +127,9 @@ button:active { transform: scale(0.94); background: var(--card-press); }
         <button id="btn-down">&minus;</button>
         <button id="btn-up">+</button>
         <button id="btn-mute" class="mute-btn">Mute</button>
+        {% if theme_enabled %}
+        <button id="btn-theme" class="mute-btn">Dark Mode</button>
+        {% endif %}
     </div>
 
     <div id="status"></div>
@@ -155,6 +159,7 @@ const statusEl = document.getElementById('status');
 const ccInner = document.getElementById('cc-inner');
 const overlayDot = document.getElementById('overlay-dot');
 const overlayText = document.getElementById('overlay-text');
+const btnTheme = document.getElementById('btn-theme');
 const ccDot = document.getElementById('cc-dot');
 const ccStatusText = document.getElementById('cc-status-text');
 const ccDotBottom = document.getElementById('cc-dot-bottom');
@@ -212,6 +217,31 @@ slider.addEventListener('input', () => {
 document.getElementById('btn-up').onclick = async () => { await fetch('/volume/up', {method:'POST'}); haptic(); bump(); fetchVolume(); };
 document.getElementById('btn-down').onclick = async () => { await fetch('/volume/down', {method:'POST'}); haptic(); bump(); fetchVolume(); };
 document.getElementById('btn-mute').onclick = async () => { await fetch('/volume/mute', {method:'POST'}); haptic(); fetchVolume(); };
+
+async function fetchThemeStatus() {
+    if (!btnTheme) return;
+    try {
+        const res = await fetch('/theme');
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        btnTheme.textContent = data.dark_mode ? '☀️ Light Mode' : '🌙 Dark Mode';
+        btnTheme.classList.remove('offline');
+    } catch {
+        btnTheme.textContent = 'theme helper offline';
+        btnTheme.classList.add('offline');
+    }
+}
+if (btnTheme) {
+    btnTheme.onclick = async () => {
+        try {
+            const res = await fetch('/theme/dark-mode', {method: 'POST'});
+            if (res.ok) haptic(); else setStatus('theme helper offline');
+        } catch { setStatus('theme helper offline'); }
+        fetchThemeStatus();
+    };
+    fetchThemeStatus();
+    setInterval(fetchThemeStatus, 10000);
+}
 
 setInterval(() => {
     const now = Date.now();

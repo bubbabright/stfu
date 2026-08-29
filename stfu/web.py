@@ -6,14 +6,15 @@ from pathlib import Path
 from flask import Flask, Response, jsonify, render_template, request
 
 from stfu import __version__
+from stfu.theme import ThemeHelperUnavailable
 
 log = logging.getLogger("stfu.web")
 
 TEMPLATE_DIR = str(Path(__file__).parent.parent / "templates")
 
 
-def create_app(audio, config):
-    """Create Flask app with injected audio controller."""
+def create_app(audio, theme, config):
+    """Create Flask app with injected audio/theme controllers."""
     app = Flask(__name__, template_folder=TEMPLATE_DIR)
     cc_queue: queue.Queue = queue.Queue()
 
@@ -26,6 +27,7 @@ def create_app(audio, config):
             poll_interval=config.web.poll_interval_ms,
             mqtt_ws_url=mqtt_ws_url,
             version=__version__,
+            theme_enabled=config.theme.enabled,
         )
 
     @app.route("/volume", methods=["GET"])
@@ -61,6 +63,26 @@ def create_app(audio, config):
         audio.toggle_mute()
         state = audio.get_state()
         return jsonify({"volume": state["volume"], "muted": state["muted"]})
+
+    @app.route("/theme", methods=["GET"])
+    def get_theme():
+        if not config.theme.enabled:
+            return jsonify({"error": "theme control disabled"}), 404
+        try:
+            return jsonify({"dark_mode": theme.get_dark_mode()})
+        except ThemeHelperUnavailable as e:
+            log.warning("Theme helper unreachable: %s", e)
+            return jsonify({"error": "theme helper unreachable"}), 503
+
+    @app.route("/theme/dark-mode", methods=["POST"])
+    def toggle_dark_mode():
+        if not config.theme.enabled:
+            return jsonify({"error": "theme control disabled"}), 404
+        try:
+            return jsonify({"dark_mode": theme.toggle_dark_mode()})
+        except ThemeHelperUnavailable as e:
+            log.warning("Theme helper unreachable: %s", e)
+            return jsonify({"error": "theme helper unreachable"}), 503
 
     @app.route("/config", methods=["GET"])
     def get_config():

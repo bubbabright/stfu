@@ -2,10 +2,14 @@
 """STFU — HTPC Volume Control
 
 Usage:
-    python -m stfu              Run web server + overlay
-    python -m stfu --no-overlay Run web server only
-    python -m stfu --mcp        Run MCP server only
-    python -m stfu --service    Run as Windows service
+    python -m stfu                       Run web server + overlay (dev/manual use)
+    python -m stfu --no-overlay          Run web server only — the "web" module
+    python -m stfu --overlay-only        Run standalone overlay only — the "overlay" module
+    python -m stfu --night-light-helper  Run Dark Mode helper — the "theme" module
+    python -m stfu --mcp                 Run MCP server only (stdio, on-demand, no autostart)
+
+The web/overlay/theme modules are registered as separate Windows Scheduled
+Tasks by scripts/register_task.ps1 — see CLAUDE.md's Deployment section.
 """
 import argparse
 import logging
@@ -42,8 +46,12 @@ def setup_logging(config):
 def main():
     parser = argparse.ArgumentParser(description="STFU — HTPC Volume Control")
     parser.add_argument("--no-overlay", action="store_true", help="Disable overlay")
+    parser.add_argument("--overlay-only", action="store_true", help="Run standalone overlay only")
     parser.add_argument("--mcp", action="store_true", help="Run MCP server only")
-    parser.add_argument("--service", action="store_true", help="Run as Windows service")
+    parser.add_argument(
+        "--night-light-helper", action="store_true",
+        help="Run Dark Mode helper (interactive session only, not for --service)",
+    )
     parser.add_argument("--config", type=str, help="Path to config file")
     args = parser.parse_args()
 
@@ -52,6 +60,12 @@ def main():
     config_path = Path(args.config) if args.config else None
     config = load_config(config_path)
 
+    if args.night_light_helper:
+        # Distinct log file — this runs as a separate long-lived process from
+        # the main app, and two RotatingFileHandlers on the same file race
+        # each other on rollover (os.rename while the other holds it open).
+        config.log.file = str(Path(config.log.file).with_name("stfu_night_light_helper.log"))
+
     setup_logging(config)
     log = logging.getLogger("stfu")
     log.info("STFU starting")
@@ -59,18 +73,32 @@ def main():
     # MCP-only mode — each MCP client owns its own stdio instance, no lock
     if args.mcp:
         from stfu.audio import AudioController
+        from stfu.theme import HTTPThemeClient
         from stfu.mcp_server import create_mcp_server, get_mcp
 
         audio = AudioController(config)
-        create_mcp_server(audio, config)
+        theme = HTTPThemeClient(config)
+        create_mcp_server(audio, theme, config=config)
         log.info("Starting MCP server")
         get_mcp().run(transport=config.mcp.transport)
         return
 
-    # Service mode — service.py acquires its own singleton lock
-    if args.service:
-        from stfu.service import _service_main
-        _service_main()
+    # Night-light-helper mode — must run in the interactive user session;
+    # see stfu/night_light_helper.py and stfu/theme.py for why.
+    if args.night_light_helper:
+        from stfu.night_light_helper import run_night_light_helper
+        run_night_light_helper(config)
+        return
+
+    # Standalone overlay mode — runs in the interactive user session, since
+    # tkinter needs the desktop; registered as its own Scheduled Task.
+    if args.overlay_only:
+        from stfu.audio import AudioController
+        from stfu.overlay import run_overlay
+
+        audio = AudioController(config)
+        log.info("Starting standalone overlay")
+        run_overlay(audio, config)
         return
 
     # Normal mode
@@ -84,12 +112,14 @@ def main():
         sys.exit(1)
 
     from stfu.audio import AudioController
+    from stfu.theme import HTTPThemeClient
     from stfu.web import create_app
 
     audio = AudioController(config)
+    theme = HTTPThemeClient(config)
 
     # Flask web server
-    app, cc_queue = create_app(audio, config)
+    app, cc_queue = create_app(audio, theme, config)
 
     def _run_flask():
         try:

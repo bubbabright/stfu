@@ -35,6 +35,11 @@ white_threshold = 500
 pixel_threshold = 200
 scan_interval = 0.5
 
+[theme]
+enabled = true
+helper_port = 5100     # loopback-only; bind host (127.0.0.1) is hardcoded, not configurable
+helper_timeout = 2.0   # seconds; how long web.py waits on the night-light-helper before 503
+
 [mcp]
 enabled = true
 name = "stfu"

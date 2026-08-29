@@ -170,6 +170,17 @@ class CCConfig:
 
 
 @dataclass
+class ThemeConfig:
+    enabled: bool = True
+    helper_port: int = 5100
+    helper_timeout: float = 2.0  # seconds; HTTPThemeClient request timeout
+
+    def __post_init__(self):
+        self.helper_port = _validate_range("theme.helper_port", self.helper_port, 1, 65535)
+        self.helper_timeout = _validate_positive("theme.helper_timeout", self.helper_timeout)
+
+
+@dataclass
 class MCPConfig:
     enabled: bool = True
     name: str = "stfu"
@@ -199,6 +210,7 @@ class AppConfig:
     overlay: OverlayConfig = field(default_factory=OverlayConfig)
     mqtt: MQTTConfig = field(default_factory=MQTTConfig)
     cc: CCConfig = field(default_factory=CCConfig)
+    theme: ThemeConfig = field(default_factory=ThemeConfig)
     mcp: MCPConfig = field(default_factory=MCPConfig)
     log: LogConfig = field(default_factory=LogConfig)
 
@@ -213,6 +225,7 @@ VALID_KEYS = {
              "topic_volume_state", "topic_volume_set"},
     "cc": {"enabled", "tesseract_cmd", "capture_region", "white_threshold",
            "pixel_threshold", "scan_interval"},
+    "theme": {"enabled", "helper_port", "helper_timeout"},
     "mcp": {"enabled", "name", "transport"},
     "log": {"level", "file", "max_bytes", "backup_count"},
 }
@@ -252,11 +265,15 @@ def load_config(path: Path | None = None) -> AppConfig:
 
     cfg = AppConfig()
     # Apply overrides section by section
-    for section_name in ["volume", "web", "overlay", "mqtt", "cc", "mcp", "log"]:
+    for section_name in ["volume", "web", "overlay", "mqtt", "cc", "theme", "mcp", "log"]:
         section_data = data.get(section_name, {})
         if section_data:
             section_obj = getattr(cfg, section_name)
             for k, v in section_data.items():
                 if hasattr(section_obj, k):
                     setattr(section_obj, k, v)
+
+    if cfg.theme.helper_port == cfg.web.port:
+        raise ValueError("theme.helper_port must differ from web.port")
+
     return cfg

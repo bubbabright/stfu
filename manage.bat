@@ -1,83 +1,73 @@
 @echo off
+set PY=%~dp0.venv\Scripts\python.exe
+
 :menu
 cls
 echo ============================
 echo   STFU Manager
 echo ============================
 echo.
-echo  1. Start (foreground)
-echo  2. Start (no overlay)
-echo  3. Install as Service
-echo  4. Start Service
-echo  5. Stop Service
-echo  6. Uninstall Service
-echo  7. Start MCP Server
-echo  8. Exit
+echo  1. Start (foreground, dev/manual use)
+echo  2. Start MCP Server (stdio)
 echo.
-set /p choice="Choose [1-8]: "
+echo  -- Modules (Scheduled Tasks) --
+echo  3. Register all 3 modules (web / overlay / night-light-helper)
+echo  4. Start module task
+echo  5. Stop module task
+echo  6. Module task status
+echo  7. Exit
+echo.
+set /p choice="Choose [1-7]: "
 
 if "%choice%"=="1" goto start_fg
-if "%choice%"=="2" goto start_nooverlay
-if "%choice%"=="3" goto install_svc
-if "%choice%"=="4" goto start_svc
-if "%choice%"=="5" goto stop_svc
-if "%choice%"=="6" goto uninstall_svc
-if "%choice%"=="7" goto start_mcp
-if "%choice%"=="8" goto end
+if "%choice%"=="2" goto start_mcp
+if "%choice%"=="3" goto register_all
+if "%choice%"=="4" goto start_task
+if "%choice%"=="5" goto stop_task
+if "%choice%"=="6" goto status_task
+if "%choice%"=="7" goto end
 echo Invalid choice.
 timeout /t 1 /nobreak >nul
 goto menu
 
 :start_fg
 echo Starting STFU (foreground + overlay)...
-python -m stfu
-goto menu
-
-:start_nooverlay
-echo Starting STFU (no overlay)...
-python -m stfu --no-overlay
-goto menu
-
-:install_svc
-echo Installing STFU service...
-nssm install STFU python -m stfu --service
-nssm set STFU AppDirectory "%~dp0"
-nssm set STFU DisplayName "STFU Volume Control"
-nssm set STFU Description "HTPC volume control with web UI, overlay, and MCP"
-nssm set STFU Start SERVICE_AUTO_START
-nssm set STFU AppStdout "%~dp0logs\service-stdout.log"
-nssm set STFU AppStderr "%~dp0logs\service-stderr.log"
-nssm set STFU AppRotateFiles 1
-nssm set STFU AppRotateBytes 5242880
-echo Service installed. Auto-starts on boot.
-timeout /t 2 /nobreak >nul
-goto menu
-
-:start_svc
-echo Starting STFU service...
-nssm start STFU
-echo Started.
-timeout /t 1 /nobreak >nul
-goto menu
-
-:stop_svc
-echo Stopping STFU service...
-nssm stop STFU
-echo Stopped.
-timeout /t 1 /nobreak >nul
-goto menu
-
-:uninstall_svc
-echo Uninstalling STFU service...
-nssm stop STFU
-nssm remove STFU confirm
-echo Uninstalled.
-timeout /t 1 /nobreak >nul
+"%PY%" -m stfu
 goto menu
 
 :start_mcp
 echo Starting MCP server (stdio)...
-python -m stfu --mcp
+"%PY%" -m stfu --mcp
+goto menu
+
+:register_all
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\register_task.ps1" -Module web
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\register_task.ps1" -Module overlay
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\register_task.ps1" -Module night-light-helper
+pause
+goto menu
+
+:start_task
+set /p taskmod="Module [web/overlay/night-light-helper]: "
+if /i "%taskmod%"=="web" schtasks /run /tn "STFU_Web"
+if /i "%taskmod%"=="overlay" schtasks /run /tn "STFU_Overlay"
+if /i "%taskmod%"=="night-light-helper" schtasks /run /tn "STFU_NightLightHelper"
+timeout /t 1 /nobreak >nul
+goto menu
+
+:stop_task
+set /p taskmod="Module [web/overlay/night-light-helper]: "
+if /i "%taskmod%"=="web" schtasks /end /tn "STFU_Web"
+if /i "%taskmod%"=="overlay" schtasks /end /tn "STFU_Overlay"
+if /i "%taskmod%"=="night-light-helper" schtasks /end /tn "STFU_NightLightHelper"
+timeout /t 1 /nobreak >nul
+goto menu
+
+:status_task
+schtasks /query /tn "STFU_Web" /v /fo list
+schtasks /query /tn "STFU_Overlay" /v /fo list
+schtasks /query /tn "STFU_NightLightHelper" /v /fo list
+pause
 goto menu
 
 :end

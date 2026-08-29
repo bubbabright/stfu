@@ -13,16 +13,16 @@ HEARTBEAT_INTERVAL_S = 300  # throttle liveness logging so it doesn't spam stfu.
 
 
 def _run_status_server(cfg):
-    """Loopback-only liveness endpoint for web.py's /overlay/status — same
-    shape as stfu/night_light_helper.py's status server, so web.py always
-    relays over HTTP rather than reading cross-process file state."""
+    """Liveness endpoint for web.py's /overlay/status — same shape as
+    stfu/night_light_helper.py's status server, so web.py always relays
+    over HTTP rather than reading cross-process file state."""
     app = Flask(__name__)
 
     @app.route("/status", methods=["GET"])
     def status():
         return jsonify({"active": True})
 
-    app.run(host="127.0.0.1", port=cfg.status_port, debug=False, use_reloader=False, threaded=True)
+    app.run(host="0.0.0.0", port=cfg.status_port, debug=False, use_reloader=False, threaded=True)
 
 
 def run_overlay(audio, config):

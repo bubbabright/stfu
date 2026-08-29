@@ -107,7 +107,7 @@ class OverlayConfig:
     font_family: str = "Segoe UI"
     font_size_mute: int = 85
     font_size_transient: int = 72
-    status_port: int = 5102  # loopback-only liveness check for web.py's /overlay/status
+    status_port: int = 5102  # liveness check for web.py's /overlay/status
     status_timeout: float = 1.0  # seconds; web.py's request timeout
 
     def __post_init__(self):

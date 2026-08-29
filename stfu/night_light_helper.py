@@ -8,7 +8,8 @@ Light" blue-light filter — see CLAUDE.md for why that one was ruled out.
 
 The only process that ever constructs ThemeController directly. Every
 other run mode (--service, normal mode, --mcp) talks to this helper
-through stfu.theme.HTTPThemeClient over loopback HTTP instead.
+through stfu.theme.HTTPThemeClient over HTTP instead — reachable across
+the LAN/Tailscale like every other STFU-facet, not loopback-restricted.
 """
 import getpass
 import logging
@@ -50,9 +51,9 @@ def run_night_light_helper(config) -> None:
     def toggle_theme():
         return jsonify({"dark_mode": theme.toggle_dark_mode(), "helper_user": getpass.getuser()})
 
-    log.info("night-light-helper listening on 127.0.0.1:%d", config.theme.helper_port)
+    log.info("night-light-helper listening on 0.0.0.0:%d", config.theme.helper_port)
     app.run(
-        host="127.0.0.1",
+        host="0.0.0.0",
         port=config.theme.helper_port,
         debug=False,
         use_reloader=False,

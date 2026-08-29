@@ -18,7 +18,7 @@ opacity = 0.78
 font_family = "Segoe UI"
 font_size_mute = 85
 font_size_transient = 72
-status_port = 5102     # loopback-only; web.py's /overlay/status relays to this
+status_port = 5102     # web.py's /overlay/status relays to this
 status_timeout = 1.0   # seconds
 
 [mqtt]
@@ -39,7 +39,7 @@ scan_interval = 0.5
 
 [theme]
 enabled = true
-helper_port = 5100     # loopback-only; bind host (127.0.0.1) is hardcoded, not configurable
+helper_port = 5100     # night-light-helper's listen port
 helper_timeout = 2.0   # seconds; how long web.py waits on the night-light-helper before 503
 
 [mcp]

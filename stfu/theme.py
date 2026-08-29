@@ -1,4 +1,4 @@
-# stfu/theme.py — Windows Dark Mode control + loopback client
+# stfu/theme.py — Windows Dark Mode control + HTTP client
 """Controls Windows' system Dark Mode (Settings > Personalization > Colors)
 via HKCU registry + a WM_SETTINGCHANGE broadcast.
 
@@ -113,7 +113,7 @@ class ThemeHelperUnavailable(Exception):
 
 
 class HTTPThemeClient:
-    """Relays theme requests to night-light-helper over loopback HTTP.
+    """Relays theme requests to night-light-helper over HTTP.
 
     Used by every run mode except the helper itself, since HKEY_CURRENT_USER
     and WM_SETTINGCHANGE are scoped to the interactive session the helper

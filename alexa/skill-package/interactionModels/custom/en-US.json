@@ -1,0 +1,36 @@
+{
+  "interactionModel": {
+    "languageModel": {
+      "intents": [
+        {
+          "slots": [],
+          "name": "MuteIntent",
+          "samples": [
+            "mute",
+            "mute the PC",
+            "mute office PC",
+            "mute the computer"
+          ]
+        },
+        {
+          "name": "AMAZON.HelpIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.CancelIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.StopIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.NavigateHomeIntent",
+          "samples": []
+        }
+      ],
+      "types": [],
+      "invocationName": "computer control"
+    }
+  }
+}

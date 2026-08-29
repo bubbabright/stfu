@@ -1,17 +1,17 @@
 # scripts/register_task.ps1
-# Registers one of STFU's Scheduled Tasks — the single mechanism for all
+# Registers one of STFU's Scheduled Tasks - the single mechanism for all
 # autostart on pluto (no NSSM, no ad-hoc Startup-folder .bat).
 #
 # Usage: register_task.ps1 -Module web|overlay|night-light-helper
 #
-# - web: Flask + audio control. At-startup, SYSTEM — must work headless,
+# - web: Flask + audio control. At-startup, SYSTEM - must work headless,
 #   before anyone logs in (pluto has AutoAdminLogon disabled).
 # - overlay / night-light-helper: need the interactive desktop session
-#   (tkinter, HKCU, WM_SETTINGCHANGE are all session-scoped) — at-logon,
+#   (tkinter, HKCU, WM_SETTINGCHANGE are all session-scoped) - at-logon,
 #   the interactive user, same constraint stfu/night_light_helper.py and
 #   stfu/theme.py document.
 #
-# Explicit WorkingDirectory and Principal every time — the two things the
+# Explicit WorkingDirectory and Principal every time - the two things the
 # old ad-hoc overlay Scheduled Task got wrong (blank WorkingDirectory
 # silently ran the wrong Python; an implicit principal can silently run as
 # whoever happened to register the task instead of the intended account).
@@ -28,7 +28,7 @@ $installDir = Split-Path -Parent $PSScriptRoot
 $pythonExe = Join-Path $installDir ".venv\Scripts\python.exe"
 
 if (-not (Test-Path $pythonExe)) {
-    Write-Error "venv not found at $pythonExe — run setup.bat first."
+    Write-Error "venv not found at $pythonExe - run setup.bat first."
     exit 1
 }
 
@@ -38,7 +38,7 @@ switch ($Module) {
         $taskArgs = "-m stfu --no-overlay"
         $trigger = New-ScheduledTaskTrigger -AtStartup
         $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
-        $description = "STFU web module: Flask + audio control. At-startup/SYSTEM — must work before anyone logs in."
+        $description = "STFU web module: Flask + audio control. At-startup/SYSTEM - must work before anyone logs in."
     }
     "overlay" {
         $taskName = "STFU_Overlay"
@@ -52,7 +52,7 @@ switch ($Module) {
         $taskArgs = "-m stfu --night-light-helper"
         $trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
         $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Limited
-        $description = "STFU theme module: Windows Dark Mode control. HKCU/WM_SETTINGCHANGE are session-scoped — needs the interactive desktop session, cannot run under SYSTEM/at-startup."
+        $description = "STFU theme module: Windows Dark Mode control. HKCU/WM_SETTINGCHANGE are session-scoped - needs the interactive desktop session, cannot run under SYSTEM/at-startup."
     }
 }
 

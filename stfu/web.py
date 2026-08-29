@@ -1,6 +1,8 @@
 # stfu/web.py — Flask web server
 import logging
 import queue
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 from flask import Flask, Response, jsonify, render_template, request
@@ -63,6 +65,15 @@ def create_app(audio, theme, config):
         audio.toggle_mute()
         state = audio.get_state()
         return jsonify({"volume": state["volume"], "muted": state["muted"]})
+
+    @app.route("/overlay/status", methods=["GET"])
+    def overlay_status():
+        url = f"http://127.0.0.1:{config.overlay.status_port}/status"
+        try:
+            with urllib.request.urlopen(url, timeout=config.overlay.status_timeout):
+                return jsonify({"active": True})
+        except (urllib.error.URLError, OSError, TimeoutError):
+            return jsonify({"active": False})
 
     @app.route("/theme", methods=["GET"])
     def get_theme():

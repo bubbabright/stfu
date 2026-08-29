@@ -18,6 +18,8 @@ opacity = 0.78
 font_family = "Segoe UI"
 font_size_mute = 85
 font_size_transient = 72
+status_port = 5102     # loopback-only; web.py's /overlay/status relays to this
+status_timeout = 1.0   # seconds
 
 [mqtt]
 enabled = true

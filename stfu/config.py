@@ -107,6 +107,8 @@ class OverlayConfig:
     font_family: str = "Segoe UI"
     font_size_mute: int = 85
     font_size_transient: int = 72
+    status_port: int = 5102  # loopback-only liveness check for web.py's /overlay/status
+    status_timeout: float = 1.0  # seconds; web.py's request timeout
 
     def __post_init__(self):
         self.poll_interval_ms = _validate_positive(
@@ -118,6 +120,8 @@ class OverlayConfig:
             "overlay.font_size_mute", self.font_size_mute)
         self.font_size_transient = _validate_positive(
             "overlay.font_size_transient", self.font_size_transient)
+        self.status_port = _validate_range("overlay.status_port", self.status_port, 1, 65535)
+        self.status_timeout = _validate_positive("overlay.status_timeout", self.status_timeout)
 
 
 @dataclass
@@ -220,7 +224,8 @@ VALID_KEYS = {
     "volume": {"step", "default", "min_val", "max_val"},
     "web": {"host", "port", "poll_interval_ms"},
     "overlay": {"enabled", "poll_interval_ms", "transient_duration", "opacity",
-                "font_family", "font_size_mute", "font_size_transient"},
+                "font_family", "font_size_mute", "font_size_transient",
+                "status_port", "status_timeout"},
     "mqtt": {"enabled", "broker", "port", "ws_port", "topic_captions",
              "topic_volume_state", "topic_volume_set"},
     "cc": {"enabled", "tesseract_cmd", "capture_region", "white_threshold",
@@ -273,7 +278,12 @@ def load_config(path: Path | None = None) -> AppConfig:
                 if hasattr(section_obj, k):
                     setattr(section_obj, k, v)
 
-    if cfg.theme.helper_port == cfg.web.port:
-        raise ValueError("theme.helper_port must differ from web.port")
+    ports = {"web.port": cfg.web.port, "theme.helper_port": cfg.theme.helper_port,
+              "overlay.status_port": cfg.overlay.status_port}
+    seen = {}
+    for name, port in ports.items():
+        if port in seen:
+            raise ValueError(f"{name} and {seen[port]} must differ (both {port})")
+        seen[port] = name
 
     return cfg

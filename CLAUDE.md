@@ -8,7 +8,9 @@ STFU — a Windows-only HTPC volume control + closed-caption tool. Runs on a Win
 
 ## Deployment
 
-Live instance runs on `pluto` (Windows 11 HTPC). Reach it with `ssh pluto`. `C:\scripts\stfu` on pluto and this repo's checkout are the **same underlying storage** (NAS-backed), not two separate clones — editing files here changes what pluto sees immediately. Only the Python environment (`.venv`) and running processes are actually per-machine state.
+Live instance runs on `pluto` (Windows 11 HTPC). Reach it with `ssh pluto`. `C:\scripts\stfu` on pluto is a **separate git clone** of this same repo (github.com/bubbabright/stfu) — not shared NAS storage. Editing files here does NOT change what pluto sees; deploy by committing here, `git push`, then `ssh pluto` and `git pull` (check `git status`/`git diff` there first — pluto's working tree can carry its own uncommitted edits). After pulling, the running processes still need restarting — see the Scheduled Task gotcha below.
+
+`Stop-ScheduledTask` on pluto has been observed to return success without actually killing the task's python.exe process tree (same PIDs survive the stop). Verify with `Get-CimInstance Win32_Process -Filter "Name='python.exe'"` piped through `findstr stfu` after stopping; if old PIDs are still there, `taskkill /PID <id> /T /F` them before `Start-ScheduledTask`, or the new instance's singleton lock refuses to start.
 
 No NSSM, no Windows Service. Autostart is three Windows Scheduled Tasks, one per module, registered by `scripts/register_task.ps1 -Module <web|overlay|night-light-helper>` (called for all three by `setup.bat`, or individually via `manage.bat`):
 

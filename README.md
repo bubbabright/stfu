@@ -33,25 +33,24 @@ cd C:\scripts\stfu
 git status              # check for local uncommitted edits first
 git pull origin master  # stash first if the working tree is dirty
 
-# 3. Restart the affected Scheduled Task(s)
-manage.bat               # menu options 5/4 = stop/start a module
-# or directly:
-powershell -Command "Stop-ScheduledTask -TaskName STFU_Web"
-powershell -Command "Start-ScheduledTask -TaskName STFU_Web"
+# 3. Restart the affected module(s) — no autostart, manage.bat runs them by hand
+manage.bat  # option 7 = stop all, then 1/2/3/4 to start what you need back
 ```
 
-**Known gotcha:** `Stop-ScheduledTask` can report success without actually
-killing the module's python.exe. Verify the old process is gone before
-restarting:
+No Scheduled Tasks anymore (dropped 2026-08-30 — pluto runs for weeks
+between reboots, autostart wasn't worth the trouble it caused: one night
+every module turned up double-running, cause never conclusively pinned
+down). If you still see a stale process after stopping, find and kill it
+directly:
 
 ```powershell
 Get-CimInstance Win32_Process -Filter "Name='python.exe'" |
   Select ProcessId,CommandLine | findstr stfu
 ```
 
-If the pre-stop PID is still listed, `taskkill /PID <id> /T /F` it —
-otherwise the new instance's singleton lock (`stfu.lock`) refuses to start
-and the module silently keeps serving old code.
+An old PID still listed after a stop will make the new instance's
+singleton lock (`stfu.lock`) refuse to start — `taskkill /PID <id> /T /F`
+it first.
 
 ## Changelog
 

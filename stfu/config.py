@@ -176,6 +176,7 @@ class CCConfig:
 @dataclass
 class ThemeConfig:
     enabled: bool = True
+    show_in_ui: bool = False  # backend/routes stay live either way; this only hides the web UI button
     helper_port: int = 5100
     helper_timeout: float = 2.0  # seconds; HTTPThemeClient request timeout
 
@@ -187,10 +188,7 @@ class ThemeConfig:
 @dataclass
 class NightLightConfig:
     enabled: bool = True
-    wnl_path: str = r"C:\Users\Us\win-nightlight-cli\target\release\wnl.exe"
-
-    def __post_init__(self):
-        pass  # path checked at runtime
+    wnl_path: str = ""
 
 
 @dataclass
@@ -240,7 +238,7 @@ VALID_KEYS = {
              "topic_volume_state", "topic_volume_set"},
     "cc": {"enabled", "tesseract_cmd", "capture_region", "white_threshold",
            "pixel_threshold", "scan_interval"},
-    "theme": {"enabled", "helper_port", "helper_timeout"},
+    "theme": {"enabled", "show_in_ui", "helper_port", "helper_timeout"},
     "nightlight": {"enabled", "wnl_path"},
     "mcp": {"enabled", "name", "transport"},
     "log": {"level", "file", "max_bytes", "backup_count"},

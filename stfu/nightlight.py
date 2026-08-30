@@ -96,5 +96,10 @@ class HTTPNightlightClient:
         try:
             with urllib.request.urlopen(req, timeout=self._timeout) as resp:
                 return json.loads(resp.read())
+        except urllib.error.HTTPError as e:
+            try:
+                return json.loads(e.read())
+            except json.JSONDecodeError:
+                raise NightlightHelperUnavailable(f"HTTP {e.code}: {e.reason}") from e
         except (urllib.error.URLError, OSError, TimeoutError) as e:
             raise NightlightHelperUnavailable(str(e)) from e

@@ -31,6 +31,7 @@ def create_app(audio, theme, config, nightlight=None):
             mqtt_ws_url=mqtt_ws_url,
             version=__version__,
             theme_enabled=config.theme.enabled,
+            theme_show_in_ui=config.theme.show_in_ui,
             nightlight_enabled=config.nightlight.enabled,
         )
 

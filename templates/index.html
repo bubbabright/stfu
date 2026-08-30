@@ -341,6 +341,18 @@ fetchVolume();
 fetchOverlayStatus();
 setInterval(fetchOverlayStatus, 10000);
 
+// External changes (Windows Settings, another device, a schedule) can leave
+// this page showing stale state for up to one poll interval. The 10s timers
+// eventually catch it, but a backgrounded phone won't tick until reopened —
+// force an immediate refresh right when the tab actually becomes visible.
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) return;
+    fetchVolume();
+    fetchOverlayStatus();
+    if (btnTheme) fetchThemeStatus();
+    if (btnNightlight) fetchNightlightStatus();
+});
+
 // ── CC Crawl via MQTT ──
 function renderCC() {
     ccInner.innerHTML = '';

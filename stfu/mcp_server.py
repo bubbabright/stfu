@@ -12,8 +12,6 @@ Tools:
     volume_down      — Decrease volume by step
     toggle_mute      — Toggle mute on/off
     set_mute         — Set mute state explicitly
-    get_dark_mode    — Read current Windows Dark Mode state (if theme injected)
-    toggle_dark_mode — Toggle Windows Dark Mode on/off (if theme injected)
 """
 import logging
 import threading
@@ -25,13 +23,11 @@ from mcp.server.fastmcp import FastMCP
 log = logging.getLogger("stfu.mcp")
 
 
-def create_mcp_server(audio, theme=None, *, config):
+def create_mcp_server(audio, *, config):
     """Create and configure FastMCP server with injected controllers.
 
     Args:
         audio: AudioController instance
-        theme: HTTPThemeClient instance, or None to skip registering the
-            Dark Mode tools (kept optional for init_mcp()'s legacy 2-arg shim)
         config: AppConfig instance
 
     Returns:
@@ -42,8 +38,7 @@ def create_mcp_server(audio, theme=None, *, config):
         instructions=(
             "Control HTPC volume on pluto. Use get_volume to read state, "
             "set_volume/volume_up/volume_down to change volume, "
-            "toggle_mute/set_mute for mute control. "
-            "get_dark_mode/toggle_dark_mode control Windows Dark Mode, if available."
+            "toggle_mute/set_mute for mute control."
         ),
     )
 
@@ -117,25 +112,6 @@ def create_mcp_server(audio, theme=None, *, config):
         audio.set_mute(muted)
         state = audio.get_state()
         return {"volume": state["volume"], "muted": state["muted"]}
-
-    if theme is not None:
-        @mcp.tool()
-        def get_dark_mode() -> dict:
-            """Get current Windows Dark Mode state.
-
-            Returns:
-                dict with key: dark_mode (bool)
-            """
-            return {"dark_mode": theme.get_dark_mode()}
-
-        @mcp.tool()
-        def toggle_dark_mode() -> dict:
-            """Toggle Windows Dark Mode on/off.
-
-            Returns:
-                dict with key: dark_mode (bool)
-            """
-            return {"dark_mode": theme.toggle_dark_mode()}
 
     return mcp
 

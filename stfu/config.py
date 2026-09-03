@@ -174,21 +174,15 @@ class CCConfig:
 
 
 @dataclass
-class ThemeConfig:
-    enabled: bool = True
-    show_in_ui: bool = False  # backend/routes stay live either way; this only hides the web UI button
-    helper_port: int = 5100
-    helper_timeout: float = 2.0  # seconds; HTTPThemeClient request timeout
-
-    def __post_init__(self):
-        self.helper_port = _validate_range("theme.helper_port", self.helper_port, 1, 65535)
-        self.helper_timeout = _validate_positive("theme.helper_timeout", self.helper_timeout)
-
-
-@dataclass
 class NightLightConfig:
     enabled: bool = True
     wnl_path: str = ""
+    helper_port: int = 5100
+    helper_timeout: float = 2.0  # seconds; HTTPNightlightClient request timeout
+
+    def __post_init__(self):
+        self.helper_port = _validate_range("nightlight.helper_port", self.helper_port, 1, 65535)
+        self.helper_timeout = _validate_positive("nightlight.helper_timeout", self.helper_timeout)
 
 
 @dataclass
@@ -230,7 +224,6 @@ class AppConfig:
     overlay: OverlayConfig = field(default_factory=OverlayConfig)
     mqtt: MQTTConfig = field(default_factory=MQTTConfig)
     cc: CCConfig = field(default_factory=CCConfig)
-    theme: ThemeConfig = field(default_factory=ThemeConfig)
     nightlight: NightLightConfig = field(default_factory=NightLightConfig)
     mcp: MCPConfig = field(default_factory=MCPConfig)
     log: LogConfig = field(default_factory=LogConfig)
@@ -247,8 +240,7 @@ VALID_KEYS = {
              "topic_volume_state", "topic_volume_set"},
     "cc": {"enabled", "tesseract_cmd", "capture_region", "white_threshold",
            "pixel_threshold", "scan_interval"},
-    "theme": {"enabled", "show_in_ui", "helper_port", "helper_timeout"},
-    "nightlight": {"enabled", "wnl_path"},
+    "nightlight": {"enabled", "wnl_path", "helper_port", "helper_timeout"},
     "mcp": {"enabled", "name", "transport", "heartbeat_interval", "heartbeat_stale_after"},
     "log": {"level", "file", "max_bytes", "backup_count"},
 }
@@ -288,7 +280,7 @@ def load_config(path: Path | None = None) -> AppConfig:
 
     cfg = AppConfig()
     # Apply overrides section by section
-    for section_name in ["volume", "web", "overlay", "mqtt", "cc", "theme", "nightlight", "mcp", "log"]:
+    for section_name in ["volume", "web", "overlay", "mqtt", "cc", "nightlight", "mcp", "log"]:
         section_data = data.get(section_name, {})
         if section_data:
             section_obj = getattr(cfg, section_name)
@@ -296,7 +288,7 @@ def load_config(path: Path | None = None) -> AppConfig:
                 if hasattr(section_obj, k):
                     setattr(section_obj, k, v)
 
-    ports = {"web.port": cfg.web.port, "theme.helper_port": cfg.theme.helper_port,
+    ports = {"web.port": cfg.web.port, "nightlight.helper_port": cfg.nightlight.helper_port,
               "overlay.status_port": cfg.overlay.status_port}
     seen = {}
     for name, port in ports.items():

@@ -156,14 +156,9 @@ button:active { transform: scale(0.94); background: var(--card-press); }
         <span id="volume-text" class="vol-pct">--%</span>
     </div>
 
-    {% if (theme_enabled and theme_show_in_ui) or nightlight_enabled %}
+    {% if nightlight_enabled %}
     <div class="buttons">
-        {% if theme_enabled and theme_show_in_ui %}
-        <button id="btn-theme" class="mute-btn">Dark Mode</button>
-        {% endif %}
-        {% if nightlight_enabled %}
         <button id="btn-nightlight" class="mute-btn">Night Light</button>
-        {% endif %}
     </div>
     {% endif %}
 
@@ -189,7 +184,6 @@ const muteBtn = document.getElementById('btn-mute');
 const statusEl = document.getElementById('status');
 const ccInner = document.getElementById('cc-inner');
 const ccWrap = document.getElementById('cc-wrap');
-const btnTheme = document.getElementById('btn-theme');
 
 function bump() { volumeText.classList.add('bump'); setTimeout(() => volumeText.classList.remove('bump'), 100); }
 function setBarFill(vol, muted) {
@@ -219,9 +213,6 @@ function addStatusItem(id, label) {
 }
 const overlayStatus = addStatusItem('overlay', 'overlay');
 const ccStatus = addStatusItem('cc', 'captions');
-{% if theme_enabled and theme_show_in_ui %}
-const themeStatus = addStatusItem('theme', 'theme');
-{% endif %}
 {% if nightlight_enabled %}
 const nightlightStatus = addStatusItem('nightlight', 'night light');
 {% endif %}
@@ -283,33 +274,6 @@ slider.addEventListener('input', () => {
 
 document.getElementById('btn-mute').onclick = async () => { await fetch('/volume/mute', {method:'POST'}); haptic(); fetchVolume(); };
 
-async function fetchThemeStatus() {
-    if (!btnTheme) return;
-    try {
-        const res = await fetch('/theme');
-        if (!res.ok) throw new Error();
-        const data = await res.json();
-        btnTheme.textContent = data.dark_mode ? '☀️ Light Mode' : '🌙 Dark Mode';
-        btnTheme.classList.remove('offline');
-        themeStatus.live('theme');
-    } catch {
-        btnTheme.textContent = 'theme helper offline';
-        btnTheme.classList.add('offline');
-        themeStatus.dead('theme offline');
-    }
-}
-if (btnTheme) {
-    btnTheme.onclick = async () => {
-        try {
-            const res = await fetch('/theme/dark-mode', {method: 'POST'});
-            if (res.ok) haptic(); else setStatus('theme helper offline');
-        } catch { setStatus('theme helper offline'); }
-        fetchThemeStatus();
-    };
-    fetchThemeStatus();
-    setInterval(fetchThemeStatus, 10000);
-}
-
 const btnNightlight = document.getElementById('btn-nightlight');
 
 async function fetchNightlightStatus() {
@@ -369,7 +333,6 @@ document.addEventListener('visibilitychange', () => {
     if (document.hidden) return;
     fetchVolume();
     fetchOverlayStatus();
-    if (btnTheme) fetchThemeStatus();
     if (btnNightlight) fetchNightlightStatus();
     {% if mcp_enabled %}fetchMcpStatus();{% endif %}
 });

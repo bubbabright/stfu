@@ -1,9 +1,8 @@
 # stfu/nightlight.py — Windows Night Light via wnl CLI + HTTP client
 """wnl shells out to a Win32 API that reads/writes the interactive user's
-HKEY_CURRENT_USER — session-scoped, same constraint as stfu/theme.py's
-Dark Mode control. NightLightController must only run inside
-night_light_helper.py's interactive session; every other run mode talks
-to it through HTTPNightlightClient over that same helper's HTTP port.
+HKEY_CURRENT_USER — session-scoped. NightLightController must only run
+inside night_light_helper.py's interactive session; every other run mode
+talks to it through HTTPNightlightClient over that same helper's HTTP port.
 """
 import json
 import logging
@@ -69,14 +68,12 @@ class NightlightHelperUnavailable(Exception):
 class HTTPNightlightClient:
     """Relays night light requests to night-light-helper over HTTP.
 
-    Used by every run mode except the helper itself — see module
-    docstring. Reuses the theme helper's port/timeout config since it's
-    the same interactive-session process.
+    Used by every run mode except the helper itself — see module docstring.
     """
 
     def __init__(self, config: "AppConfig"):
-        self._base = f"http://127.0.0.1:{config.theme.helper_port}"
-        self._timeout = config.theme.helper_timeout
+        self._base = f"http://127.0.0.1:{config.nightlight.helper_port}"
+        self._timeout = config.nightlight.helper_timeout
 
     def status(self) -> dict:
         return self._request("GET", "/nightlight")

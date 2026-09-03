@@ -10,15 +10,14 @@ from flask import Flask, Response, jsonify, render_template, request
 
 from stfu import __version__
 from stfu.nightlight import NightlightHelperUnavailable
-from stfu.theme import ThemeHelperUnavailable
 
 log = logging.getLogger("stfu.web")
 
 TEMPLATE_DIR = str(Path(__file__).parent.parent / "templates")
 
 
-def create_app(audio, theme, config, nightlight=None):
-    """Create Flask app with injected audio/theme/nightlight controllers."""
+def create_app(audio, config, nightlight=None):
+    """Create Flask app with injected audio/nightlight controllers."""
     app = Flask(__name__, template_folder=TEMPLATE_DIR)
     cc_queue: queue.Queue = queue.Queue()
 
@@ -31,8 +30,6 @@ def create_app(audio, theme, config, nightlight=None):
             poll_interval=config.web.poll_interval_ms,
             mqtt_ws_url=mqtt_ws_url,
             version=__version__,
-            theme_enabled=config.theme.enabled,
-            theme_show_in_ui=config.theme.show_in_ui,
             nightlight_enabled=config.nightlight.enabled,
             mcp_enabled=config.mcp.enabled,
         )
@@ -79,19 +76,6 @@ def create_app(audio, theme, config, nightlight=None):
                 return jsonify({"active": True})
         except (urllib.error.URLError, OSError, TimeoutError):
             return jsonify({"active": False})
-
-    @app.route("/theme", methods=["GET"])
-    @app.route("/theme/dark-mode", methods=["POST"])
-    def light_dark_theme():
-        if not config.theme.enabled:
-            return jsonify({"error": "theme control disabled"}), 404
-        try:
-            if request.method == "POST":
-                return jsonify({"dark_mode": theme.toggle_dark_mode()})
-            return jsonify({"dark_mode": theme.get_dark_mode()})
-        except ThemeHelperUnavailable as e:
-            log.warning("Theme helper unreachable: %s", e)
-            return jsonify({"error": "theme helper unreachable"}), 503
 
     @app.route("/nightlight", methods=["GET", "POST"])
     def nightlight_on_off():

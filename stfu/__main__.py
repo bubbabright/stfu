@@ -5,10 +5,10 @@ Usage:
     python -m stfu                       Run web server + overlay (dev/manual use)
     python -m stfu --no-overlay          Run web server only — the "web" module
     python -m stfu --overlay-only        Run standalone overlay only — the "overlay" module
-    python -m stfu --night-light-helper  Run Dark Mode helper — the "theme" module
+    python -m stfu --night-light-helper  Run Night Light helper — the "nightlight" module
     python -m stfu --mcp                 Run MCP server only (stdio, on-demand, no autostart)
 
-The web/overlay/theme modules are registered as separate Windows Scheduled
+The web/overlay/nightlight modules are registered as separate Windows Scheduled
 Tasks by scripts/register_task.ps1 — see CLAUDE.md's Deployment section.
 """
 import argparse
@@ -50,7 +50,7 @@ def main():
     parser.add_argument("--mcp", action="store_true", help="Run MCP server only")
     parser.add_argument(
         "--night-light-helper", action="store_true",
-        help="Run Dark Mode helper (interactive session only, not for --service)",
+        help="Run Night Light helper (interactive session only, not for --service)",
     )
     parser.add_argument("--config", type=str, help="Path to config file")
     args = parser.parse_args()
@@ -75,19 +75,17 @@ def main():
     # MCP-only mode — each MCP client owns its own stdio instance, no lock
     if args.mcp:
         from stfu.audio import AudioController
-        from stfu.theme import HTTPThemeClient
         from stfu.mcp_server import create_mcp_server, start_heartbeat
 
         audio = AudioController(config)
-        theme = HTTPThemeClient(config)
-        mcp = create_mcp_server(audio, theme, config=config)
+        mcp = create_mcp_server(audio, config=config)
         start_heartbeat(config)
         log.info("Starting MCP server")
         mcp.run(transport=config.mcp.transport)
         return
 
     # Night-light-helper mode — must run in the interactive user session;
-    # see stfu/night_light_helper.py and stfu/theme.py for why.
+    # see stfu/night_light_helper.py for why.
     if args.night_light_helper:
         from stfu.night_light_helper import run_night_light_helper
         run_night_light_helper(config)
@@ -115,19 +113,17 @@ def main():
         sys.exit(1)
 
     from stfu.audio import AudioController
-    from stfu.theme import HTTPThemeClient
     from stfu.web import create_app
     from stfu.nightlight import HTTPNightlightClient
 
     audio = AudioController(config)
-    theme = HTTPThemeClient(config)
 
     nightlight = None
     if config.nightlight.enabled:
         nightlight = HTTPNightlightClient(config)
 
     # Flask web server
-    app, cc_queue = create_app(audio, theme, config, nightlight=nightlight)
+    app, cc_queue = create_app(audio, config, nightlight=nightlight)
 
     def _run_flask():
         try:

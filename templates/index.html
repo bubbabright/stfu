@@ -326,6 +326,7 @@ if (btnNightlight) {
 const tintSlider = document.getElementById('tint-slider');
 const tintText = document.getElementById('tint-text');
 let tintDebounce;
+let tintDragging = false;
 
 async function fetchTintStatus() {
     if (!tintSlider) return;
@@ -333,10 +334,14 @@ async function fetchTintStatus() {
         const res = await fetch('/tint');
         if (!res.ok) throw new Error();
         const data = await res.json();
-        const pct = Math.round(data.alpha * 100);
-        tintSlider.value = pct;
-        tintSlider.style.setProperty('--pct', pct + '%');
-        tintText.textContent = pct + '%';
+        // Don't yank the slider out from under a finger/cursor that's
+        // mid-drag on THIS device — but still confirm the connection is live.
+        if (!tintDragging) {
+            const pct = Math.round(data.alpha * 100);
+            tintSlider.value = pct;
+            tintSlider.style.setProperty('--pct', pct + '%');
+            tintText.textContent = pct + '%';
+        }
         tintStatus.live('tint');
     } catch {
         tintStatus.dead('tint offline');
@@ -344,6 +349,8 @@ async function fetchTintStatus() {
 }
 
 if (tintSlider) {
+    tintSlider.addEventListener('pointerdown', () => { tintDragging = true; });
+    tintSlider.addEventListener('pointerup', () => { tintDragging = false; fetchTintStatus(); });
     tintSlider.addEventListener('input', () => {
         const pct = parseInt(tintSlider.value);
         tintSlider.style.setProperty('--pct', pct + '%');
@@ -361,7 +368,11 @@ if (tintSlider) {
         }, 120);
     });
     fetchTintStatus();
-    setInterval(fetchTintStatus, 10000);
+    // Same cadence as volume (POLL_INTERVAL), not the 10s status-dot
+    // cadence — tint is a live analog value like volume, not a slow
+    // binary status, so other open tabs/devices need to see it track
+    // in near-real-time, not lag up to 10s behind.
+    setInterval(fetchTintStatus, POLL_INTERVAL);
 }
 
 setInterval(() => {

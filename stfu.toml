@@ -47,9 +47,11 @@ enabled = true
 wnl_path = "C:\\Users\\Us\\win-nightlight-cli\\target\\release\\wnl.exe"
 
 [mcp]
-enabled = true
+enabled = false  # off by default — flip on to run MCP again
 name = "stfu"
 transport = "stdio"
+heartbeat_interval = 5.0
+heartbeat_stale_after = 15.0
 
 [log]
 level = "INFO"

@@ -1,6 +1,7 @@
 # stfu/web.py — Flask web server
 import logging
 import queue
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -33,6 +34,7 @@ def create_app(audio, theme, config, nightlight=None):
             theme_enabled=config.theme.enabled,
             theme_show_in_ui=config.theme.show_in_ui,
             nightlight_enabled=config.nightlight.enabled,
+            mcp_enabled=config.mcp.enabled,
         )
 
     @app.route("/volume", methods=["GET"])
@@ -108,6 +110,19 @@ def create_app(audio, theme, config, nightlight=None):
         except NightlightHelperUnavailable as e:
             log.warning("Night light helper unreachable: %s", e)
             return jsonify({"error": "nightlight helper unreachable"}), 503
+
+    @app.route("/mcp/status", methods=["GET"])
+    def mcp_status():
+        if not config.mcp.enabled:
+            return jsonify({"error": "mcp disabled"}), 404
+        from stfu.mcp_server import heartbeat_path  # lazy: only needed if mcp is enabled
+
+        try:
+            age = time.time() - heartbeat_path(config).stat().st_mtime
+            active = age <= config.mcp.heartbeat_stale_after
+        except OSError:
+            active = False
+        return jsonify({"active": active})
 
     @app.route("/config", methods=["GET"])
     def get_config():

@@ -76,13 +76,14 @@ def main():
     if args.mcp:
         from stfu.audio import AudioController
         from stfu.theme import HTTPThemeClient
-        from stfu.mcp_server import create_mcp_server, get_mcp
+        from stfu.mcp_server import create_mcp_server, start_heartbeat
 
         audio = AudioController(config)
         theme = HTTPThemeClient(config)
-        create_mcp_server(audio, theme, config=config)
+        mcp = create_mcp_server(audio, theme, config=config)
+        start_heartbeat(config)
         log.info("Starting MCP server")
-        get_mcp().run(transport=config.mcp.transport)
+        mcp.run(transport=config.mcp.transport)
         return
 
     # Night-light-helper mode — must run in the interactive user session;

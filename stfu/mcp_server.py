@@ -16,6 +16,9 @@ Tools:
     toggle_dark_mode — Toggle Windows Dark Mode on/off (if theme injected)
 """
 import logging
+import threading
+import time
+from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
 
@@ -137,28 +140,25 @@ def create_mcp_server(audio, theme=None, *, config):
     return mcp
 
 
-# Backward compatibility: legacy init_mcp() for existing callers
-# This creates a module-level server that can be run directly
-_audio = None
-_config = None
-_mcp = None
+def heartbeat_path(config) -> Path:
+    """Path to the file start_heartbeat() touches while the MCP process is alive.
 
-
-def init_mcp(audio, config):
-    """Legacy function - use create_mcp_server instead.
-
-    Creates a module-level MCP server for backward compatibility
-    with `python -m stfu.mcp_server` entry point.
+    web.py's /mcp/status reads this file's mtime to report liveness.
     """
-    global _audio, _config, _mcp
-    _audio = audio
-    _config = config
-    _mcp = create_mcp_server(audio, config=config)
-    log.warning("init_mcp() is deprecated; use create_mcp_server()")
+    return Path(config.log.file).with_name("stfu_mcp.heartbeat")
 
 
-def get_mcp():
-    """Get the module-level MCP server (created by init_mcp)."""
-    if _mcp is None:
-        raise RuntimeError("MCP server not initialized - call init_mcp() first")
-    return _mcp
+def start_heartbeat(config) -> None:
+    """Touch the heartbeat file on a timer for as long as this process lives.
+
+    A stale file means the process died (crash, kill) — no graceful shutdown
+    handling needed, staleness alone is the signal.
+    """
+    path = heartbeat_path(config)
+
+    def _beat():
+        while True:
+            path.touch()
+            time.sleep(config.mcp.heartbeat_interval)
+
+    threading.Thread(target=_beat, daemon=True).start()

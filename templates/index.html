@@ -225,6 +225,9 @@ const themeStatus = addStatusItem('theme', 'theme');
 {% if nightlight_enabled %}
 const nightlightStatus = addStatusItem('nightlight', 'night light');
 {% endif %}
+{% if mcp_enabled %}
+const mcpStatus = addStatusItem('mcp', 'mcp');
+{% endif %}
 
 async function fetchVolume() {
     try {
@@ -246,6 +249,19 @@ async function fetchOverlayStatus() {
         overlayStatus.dead('overlay unknown');
     }
 }
+
+{% if mcp_enabled %}
+async function fetchMcpStatus() {
+    try {
+        const res = await fetch('/mcp/status');
+        const data = await res.json();
+        if (data.active) mcpStatus.live('mcp connected');
+        else mcpStatus.dead('mcp offline');
+    } catch {
+        mcpStatus.dead('mcp unknown');
+    }
+}
+{% endif %}
 
 slider.addEventListener('input', () => {
     const vol = parseInt(slider.value);
@@ -340,6 +356,10 @@ setInterval(() => {
 fetchVolume();
 fetchOverlayStatus();
 setInterval(fetchOverlayStatus, 10000);
+{% if mcp_enabled %}
+fetchMcpStatus();
+setInterval(fetchMcpStatus, 10000);
+{% endif %}
 
 // External changes (Windows Settings, another device, a schedule) can leave
 // this page showing stale state for up to one poll interval. The 10s timers
@@ -351,6 +371,7 @@ document.addEventListener('visibilitychange', () => {
     fetchOverlayStatus();
     if (btnTheme) fetchThemeStatus();
     if (btnNightlight) fetchNightlightStatus();
+    {% if mcp_enabled %}fetchMcpStatus();{% endif %}
 });
 
 // ── CC Crawl via MQTT ──

@@ -193,12 +193,21 @@ class NightLightConfig:
 
 @dataclass
 class MCPConfig:
-    enabled: bool = True
+    enabled: bool = False  # off by default — flip on to run MCP again
     name: str = "stfu"
     transport: str = "stdio"
+    heartbeat_interval: float = 5.0  # seconds between heartbeat touches
+    heartbeat_stale_after: float = 15.0  # web.py's /mcp/status: older than this = dead
 
     def __post_init__(self):
         self.transport = _validate_transport(self.transport)
+        self.heartbeat_interval = _validate_positive(
+            "mcp.heartbeat_interval", self.heartbeat_interval)
+        self.heartbeat_stale_after = _validate_positive(
+            "mcp.heartbeat_stale_after", self.heartbeat_stale_after)
+        if self.heartbeat_stale_after <= self.heartbeat_interval:
+            raise ValueError(
+                "mcp.heartbeat_stale_after must be greater than heartbeat_interval")
 
 
 @dataclass
@@ -240,7 +249,7 @@ VALID_KEYS = {
            "pixel_threshold", "scan_interval"},
     "theme": {"enabled", "show_in_ui", "helper_port", "helper_timeout"},
     "nightlight": {"enabled", "wnl_path"},
-    "mcp": {"enabled", "name", "transport"},
+    "mcp": {"enabled", "name", "transport", "heartbeat_interval", "heartbeat_stale_after"},
     "log": {"level", "file", "max_bytes", "backup_count"},
 }
 

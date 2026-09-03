@@ -43,6 +43,12 @@ wnl_path = "C:\\Users\\Us\\win-nightlight-cli\\target\\release\\wnl.exe"
 helper_port = 5100     # night-light-helper's listen port
 helper_timeout = 2.0   # seconds; how long web.py waits on the night-light-helper before 503
 
+[tint]
+enabled = true
+alpha_max = 0.95        # upper clamp for the web UI slider
+control_port = 5103     # --tint-only's listen port
+control_timeout = 1.0   # seconds; how long web.py waits on the tint process before 503
+
 [mcp]
 enabled = false  # off by default — flip on to run MCP again
 name = "stfu"

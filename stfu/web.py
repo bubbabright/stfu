@@ -10,14 +10,15 @@ from flask import Flask, Response, jsonify, render_template, request
 
 from stfu import __version__
 from stfu.nightlight import NightlightHelperUnavailable
+from stfu.tint import TintUnavailable
 
 log = logging.getLogger("stfu.web")
 
 TEMPLATE_DIR = str(Path(__file__).parent.parent / "templates")
 
 
-def create_app(audio, config, nightlight=None):
-    """Create Flask app with injected audio/nightlight controllers."""
+def create_app(audio, config, nightlight=None, tint=None):
+    """Create Flask app with injected audio/nightlight/tint controllers."""
     app = Flask(__name__, template_folder=TEMPLATE_DIR)
     cc_queue: queue.Queue = queue.Queue()
 
@@ -31,6 +32,7 @@ def create_app(audio, config, nightlight=None):
             mqtt_ws_url=mqtt_ws_url,
             version=__version__,
             nightlight_enabled=config.nightlight.enabled,
+            tint_enabled=config.tint.enabled,
             mcp_enabled=config.mcp.enabled,
         )
 
@@ -94,6 +96,31 @@ def create_app(audio, config, nightlight=None):
         except NightlightHelperUnavailable as e:
             log.warning("Night light helper unreachable: %s", e)
             return jsonify({"error": "nightlight helper unreachable"}), 503
+
+    @app.route("/tint", methods=["GET"])
+    def tint_status():
+        if not config.tint.enabled or tint is None:
+            return jsonify({"error": "tint disabled"}), 404
+        try:
+            return jsonify(tint.status())
+        except TintUnavailable as e:
+            log.warning("Tint helper unreachable: %s", e)
+            return jsonify({"error": "tint helper unreachable"}), 503
+
+    @app.route("/tint/opacity", methods=["POST"])
+    def tint_opacity():
+        if not config.tint.enabled or tint is None:
+            return jsonify({"error": "tint disabled"}), 404
+        data = request.get_json(silent=True) or {}
+        try:
+            alpha = float(data.get("alpha"))
+        except (TypeError, ValueError):
+            return jsonify({"error": "alpha must be a number"}), 400
+        try:
+            return jsonify(tint.set_opacity(alpha))
+        except TintUnavailable as e:
+            log.warning("Tint helper unreachable: %s", e)
+            return jsonify({"error": "tint helper unreachable"}), 503
 
     @app.route("/mcp/status", methods=["GET"])
     def mcp_status():

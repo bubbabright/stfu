@@ -6,10 +6,11 @@ Usage:
     python -m stfu --no-overlay          Run web server only — the "web" module
     python -m stfu --overlay-only        Run standalone overlay only — the "overlay" module
     python -m stfu --night-light-helper  Run Night Light helper — the "nightlight" module
+    python -m stfu --tint-only           Run standalone tint overlay only — the "tint" module
     python -m stfu --mcp                 Run MCP server only (stdio, on-demand, no autostart)
 
-The web/overlay/nightlight modules are registered as separate Windows Scheduled
-Tasks by scripts/register_task.ps1 — see CLAUDE.md's Deployment section.
+No autostart — each module is started by hand via manage.bat, one process
+per module. See CLAUDE.md's Deployment section.
 """
 import argparse
 import logging
@@ -47,6 +48,7 @@ def main():
     parser = argparse.ArgumentParser(description="STFU — HTPC Volume Control")
     parser.add_argument("--no-overlay", action="store_true", help="Disable overlay")
     parser.add_argument("--overlay-only", action="store_true", help="Run standalone overlay only")
+    parser.add_argument("--tint-only", action="store_true", help="Run standalone tint overlay only")
     parser.add_argument("--mcp", action="store_true", help="Run MCP server only")
     parser.add_argument(
         "--night-light-helper", action="store_true",
@@ -67,6 +69,8 @@ def main():
         config.log.file = str(Path(config.log.file).with_name("stfu_night_light_helper.log"))
     elif args.overlay_only:
         config.log.file = str(Path(config.log.file).with_name("stfu_overlay.log"))
+    elif args.tint_only:
+        config.log.file = str(Path(config.log.file).with_name("stfu_tint.log"))
 
     setup_logging(config)
     log = logging.getLogger("stfu")
@@ -92,7 +96,7 @@ def main():
         return
 
     # Standalone overlay mode — runs in the interactive user session, since
-    # tkinter needs the desktop; registered as its own Scheduled Task.
+    # tkinter needs the desktop; started by hand via manage.bat.
     if args.overlay_only:
         from stfu.audio import AudioController
         from stfu.overlay import run_overlay
@@ -100,6 +104,15 @@ def main():
         audio = AudioController(config)
         log.info("Starting standalone overlay")
         run_overlay(audio, config)
+        return
+
+    # Standalone tint mode — same interactive-session constraint as the
+    # volume overlay; see stfu/tint.py for why it can't share that window.
+    if args.tint_only:
+        from stfu.tint import run_tint
+
+        log.info("Starting tint overlay")
+        run_tint(config)
         return
 
     # Normal mode
@@ -115,6 +128,7 @@ def main():
     from stfu.audio import AudioController
     from stfu.web import create_app
     from stfu.nightlight import HTTPNightlightClient
+    from stfu.tint import HTTPTintClient
 
     audio = AudioController(config)
 
@@ -122,8 +136,12 @@ def main():
     if config.nightlight.enabled:
         nightlight = HTTPNightlightClient(config)
 
+    tint = None
+    if config.tint.enabled:
+        tint = HTTPTintClient(config)
+
     # Flask web server
-    app, cc_queue = create_app(audio, config, nightlight=nightlight)
+    app, cc_queue = create_app(audio, config, nightlight=nightlight, tint=tint)
 
     def _run_flask():
         try:

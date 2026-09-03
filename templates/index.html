@@ -60,6 +60,7 @@ h1 { font-size: 1.4rem; opacity: 0.7; margin-bottom: 10px; }
     transition: background-color 0.15s;
 }
 .vol-bar.muted { --vol-fill: var(--accent); }
+.vol-bar.tint-bar { --vol-fill: #b33; }
 .vol-bar::-webkit-slider-thumb {
     -webkit-appearance: none; width: 6px; height: 36px; border-radius: 3px;
     background: rgba(255,255,255,0.7); box-shadow: 0 0 0 6px rgba(255,255,255,0.15);
@@ -162,6 +163,13 @@ button:active { transform: scale(0.94); background: var(--card-press); }
     </div>
     {% endif %}
 
+    {% if tint_enabled %}
+    <div class="volume-control" id="tint-control">
+        <input type="range" id="tint-slider" class="vol-bar tint-bar" min="0" max="100" value="0">
+        <span id="tint-text" class="vol-pct">0%</span>
+    </div>
+    {% endif %}
+
     <div id="status"></div>
 
     <!-- CC CRAWL — starts collapsed, expands on first caption -->
@@ -215,6 +223,9 @@ const overlayStatus = addStatusItem('overlay', 'overlay');
 const ccStatus = addStatusItem('cc', 'captions');
 {% if nightlight_enabled %}
 const nightlightStatus = addStatusItem('nightlight', 'night light');
+{% endif %}
+{% if tint_enabled %}
+const tintStatus = addStatusItem('tint', 'tint');
 {% endif %}
 {% if mcp_enabled %}
 const mcpStatus = addStatusItem('mcp', 'mcp');
@@ -312,6 +323,47 @@ if (btnNightlight) {
     setInterval(fetchNightlightStatus, 10000);
 }
 
+const tintSlider = document.getElementById('tint-slider');
+const tintText = document.getElementById('tint-text');
+let tintDebounce;
+
+async function fetchTintStatus() {
+    if (!tintSlider) return;
+    try {
+        const res = await fetch('/tint');
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        const pct = Math.round(data.alpha * 100);
+        tintSlider.value = pct;
+        tintSlider.style.setProperty('--pct', pct + '%');
+        tintText.textContent = pct + '%';
+        tintStatus.live('tint');
+    } catch {
+        tintStatus.dead('tint offline');
+    }
+}
+
+if (tintSlider) {
+    tintSlider.addEventListener('input', () => {
+        const pct = parseInt(tintSlider.value);
+        tintSlider.style.setProperty('--pct', pct + '%');
+        tintText.textContent = pct + '%';
+        clearTimeout(tintDebounce);
+        tintDebounce = setTimeout(async () => {
+            try {
+                await fetch('/tint/opacity', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ alpha: pct / 100 })
+                });
+                haptic();
+            } catch { setStatus('tint failed'); }
+        }, 120);
+    });
+    fetchTintStatus();
+    setInterval(fetchTintStatus, 10000);
+}
+
 setInterval(() => {
     const now = Date.now();
     if (now - lastUpdate > POLL_INTERVAL - 50) { lastUpdate = now; fetchVolume(); }
@@ -334,6 +386,7 @@ document.addEventListener('visibilitychange', () => {
     fetchVolume();
     fetchOverlayStatus();
     if (btnNightlight) fetchNightlightStatus();
+    if (tintSlider) fetchTintStatus();
     {% if mcp_enabled %}fetchMcpStatus();{% endif %}
 });
 

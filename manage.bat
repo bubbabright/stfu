@@ -7,27 +7,29 @@ echo ============================
 echo   STFU Manager (manual — no scheduled tasks)
 echo ============================
 echo.
-echo  1. Start ALL (web + overlay + night-light-helper, one window each)
+echo  1. Start ALL (web + overlay + night-light-helper + tint, one window each)
 echo  2. Start Web only
 echo  3. Start Overlay only
 echo  4. Start Night-Light-Helper only
-echo  5. Start (single foreground process, dev/manual use)
-echo  6. Start MCP Server (stdio)
-echo  7. Stop ALL stfu processes
-echo  8. Status (list running stfu processes)
-echo  9. Exit
+echo  5. Start Tint Overlay only
+echo  6. Start (single foreground process, dev/manual use)
+echo  7. Start MCP Server (stdio)
+echo  8. Stop ALL stfu processes
+echo  9. Status (list running stfu processes)
+echo  10. Exit
 echo.
-set /p choice="Choose [1-9]: "
+set /p choice="Choose [1-10]: "
 
 if "%choice%"=="1" goto start_all
 if "%choice%"=="2" goto start_web
 if "%choice%"=="3" goto start_overlay
 if "%choice%"=="4" goto start_nlh
-if "%choice%"=="5" goto start_fg
-if "%choice%"=="6" goto start_mcp
-if "%choice%"=="7" goto stop_all
-if "%choice%"=="8" goto status
-if "%choice%"=="9" goto end
+if "%choice%"=="5" goto start_tint
+if "%choice%"=="6" goto start_fg
+if "%choice%"=="7" goto start_mcp
+if "%choice%"=="8" goto stop_all
+if "%choice%"=="9" goto status
+if "%choice%"=="10" goto end
 echo Invalid choice.
 timeout /t 1 /nobreak >nul
 goto menu
@@ -36,6 +38,7 @@ goto menu
 start "STFU Web" cmd /k "%PY%" -m stfu --no-overlay
 start "STFU Overlay" cmd /k "%PY%" -m stfu --overlay-only
 start "STFU Night-Light-Helper" cmd /k "%PY%" -m stfu --night-light-helper
+start "STFU Tint" cmd /k "%PY%" -m stfu --tint-only
 goto menu
 
 :start_web
@@ -48,6 +51,10 @@ goto menu
 
 :start_nlh
 start "STFU Night-Light-Helper" cmd /k "%PY%" -m stfu --night-light-helper
+goto menu
+
+:start_tint
+start "STFU Tint" cmd /k "%PY%" -m stfu --tint-only
 goto menu
 
 :start_fg

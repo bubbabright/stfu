@@ -186,6 +186,19 @@ class NightLightConfig:
 
 
 @dataclass
+class TintConfig:
+    enabled: bool = True
+    alpha_max: float = 0.95  # upper clamp; web.py's /tint/opacity won't accept above this
+    control_port: int = 5103
+    control_timeout: float = 1.0  # seconds; HTTPTintClient request timeout
+
+    def __post_init__(self):
+        self.alpha_max = _validate_opacity(self.alpha_max)
+        self.control_port = _validate_range("tint.control_port", self.control_port, 1, 65535)
+        self.control_timeout = _validate_positive("tint.control_timeout", self.control_timeout)
+
+
+@dataclass
 class MCPConfig:
     enabled: bool = False  # off by default — flip on to run MCP again
     name: str = "stfu"
@@ -225,6 +238,7 @@ class AppConfig:
     mqtt: MQTTConfig = field(default_factory=MQTTConfig)
     cc: CCConfig = field(default_factory=CCConfig)
     nightlight: NightLightConfig = field(default_factory=NightLightConfig)
+    tint: TintConfig = field(default_factory=TintConfig)
     mcp: MCPConfig = field(default_factory=MCPConfig)
     log: LogConfig = field(default_factory=LogConfig)
 
@@ -241,6 +255,7 @@ VALID_KEYS = {
     "cc": {"enabled", "tesseract_cmd", "capture_region", "white_threshold",
            "pixel_threshold", "scan_interval"},
     "nightlight": {"enabled", "wnl_path", "helper_port", "helper_timeout"},
+    "tint": {"enabled", "alpha_max", "control_port", "control_timeout"},
     "mcp": {"enabled", "name", "transport", "heartbeat_interval", "heartbeat_stale_after"},
     "log": {"level", "file", "max_bytes", "backup_count"},
 }
@@ -280,7 +295,7 @@ def load_config(path: Path | None = None) -> AppConfig:
 
     cfg = AppConfig()
     # Apply overrides section by section
-    for section_name in ["volume", "web", "overlay", "mqtt", "cc", "nightlight", "mcp", "log"]:
+    for section_name in ["volume", "web", "overlay", "mqtt", "cc", "nightlight", "tint", "mcp", "log"]:
         section_data = data.get(section_name, {})
         if section_data:
             section_obj = getattr(cfg, section_name)
@@ -289,7 +304,7 @@ def load_config(path: Path | None = None) -> AppConfig:
                     setattr(section_obj, k, v)
 
     ports = {"web.port": cfg.web.port, "nightlight.helper_port": cfg.nightlight.helper_port,
-              "overlay.status_port": cfg.overlay.status_port}
+              "overlay.status_port": cfg.overlay.status_port, "tint.control_port": cfg.tint.control_port}
     seen = {}
     for name, port in ports.items():
         if port in seen:

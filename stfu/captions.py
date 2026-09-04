@@ -12,8 +12,8 @@ from pathlib import Path
 import numpy as np
 import paho.mqtt.client as mqtt
 import pytesseract
-from flask import Flask
 from PIL import Image
+from flask import Flask
 
 from stfu.config import acquire_singleton_lock
 

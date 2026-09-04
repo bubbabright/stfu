@@ -23,7 +23,7 @@ status_timeout = 1.0   # seconds
 
 [mqtt]
 enabled = true
-broker = "192.168.1.215"
+broker = "mqtt.hoboguppy.com"
 port = 1883
 ws_port = 9001
 topic_captions = "htpc/captions"
@@ -31,7 +31,7 @@ topic_volume_state = "htpc/volume/state"
 topic_volume_set = "htpc/volume/set"
 
 [cc]
-enabled = false
+enabled = true
 tesseract_cmd = 'C:\Program Files\Tesseract-OCR\tesseract.exe'
 white_threshold = 500
 pixel_threshold = 200

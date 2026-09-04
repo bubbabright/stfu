@@ -18,9 +18,11 @@ echo  8. Stop ALL stfu processes
 echo  9. Status (list running stfu processes)
 echo  10. Exit
 echo  11. Start Caption Capture only
-echo  12. Exit (Alt)
+echo  12. Set MQTT Broker URL
+echo  13. Show MQTT Config
+echo  14. Exit (Alt)
 echo.
-set /p choice="Choose [1-12]: "
+set /p choice="Choose [1-14]: "
 
 if "%choice%"=="1" goto start_all
 if "%choice%"=="2" goto start_web
@@ -33,7 +35,9 @@ if "%choice%"=="8" goto stop_all
 if "%choice%"=="9" goto status
 if "%choice%"=="10" goto end
 if "%choice%"=="11" goto start_cc
-if "%choice%"=="12" goto end
+if "%choice%"=="12" goto set_mqtt
+if "%choice%"=="13" goto show_mqtt
+if "%choice%"=="14" goto end
 echo Invalid choice.
 timeout /t 1 /nobreak >nul
 goto menu
@@ -74,6 +78,20 @@ goto menu
 
 :start_cc
 start "STFU Caption Capture" cmd /k "%PY%" -m stfu --cc-only
+goto menu
+
+:set_mqtt
+set /p MQTT_BROKER="Enter MQTT Broker URL (e.g. mqtt.hoboguppy.com): "
+powershell -NoProfile -Command "(Get-Content stfu.toml) -replace '(?<=broker = \")[^\"]*', '%MQTT_BROKER%' | Set-Content stfu.toml"
+echo MQTT broker updated to %MQTT_BROKER%
+timeout /t 2 /nobreak >nul
+goto menu
+
+:show_mqtt
+echo.
+powershell -NoProfile -Command "Select-String -Path stfu.toml -Pattern 'broker|mqtt' | Select-Object -First 10"
+echo.
+pause
 goto menu
 
 :stop_all

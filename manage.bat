@@ -17,8 +17,10 @@ echo  7. Start MCP Server (stdio)
 echo  8. Stop ALL stfu processes
 echo  9. Status (list running stfu processes)
 echo  10. Exit
+echo  11. Start Caption Capture only
+echo  12. Exit (Alt)
 echo.
-set /p choice="Choose [1-10]: "
+set /p choice="Choose [1-12]: "
 
 if "%choice%"=="1" goto start_all
 if "%choice%"=="2" goto start_web
@@ -30,6 +32,8 @@ if "%choice%"=="7" goto start_mcp
 if "%choice%"=="8" goto stop_all
 if "%choice%"=="9" goto status
 if "%choice%"=="10" goto end
+if "%choice%"=="11" goto start_cc
+if "%choice%"=="12" goto end
 echo Invalid choice.
 timeout /t 1 /nobreak >nul
 goto menu
@@ -39,6 +43,7 @@ start "STFU Web" cmd /k "%PY%" -m stfu --no-overlay
 start "STFU Overlay" cmd /k "%PY%" -m stfu --overlay-only
 start "STFU Night-Light-Helper" cmd /k "%PY%" -m stfu --night-light-helper
 start "STFU Tint" cmd /k "%PY%" -m stfu --tint-only
+start "STFU Caption Capture" cmd /k "%PY%" -m stfu --cc-only
 goto menu
 
 :start_web
@@ -65,6 +70,10 @@ goto menu
 :start_mcp
 echo Starting MCP server (stdio)...
 "%PY%" -m stfu --mcp
+goto menu
+
+:start_cc
+start "STFU Caption Capture" cmd /k "%PY%" -m stfu --cc-only
 goto menu
 
 :stop_all

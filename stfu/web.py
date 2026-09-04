@@ -9,6 +9,7 @@ from pathlib import Path
 from flask import Flask, Response, jsonify, render_template, request
 
 from stfu import __version__
+from stfu.captions import CCUnavailable
 from stfu.nightlight import NightlightHelperUnavailable
 from stfu.tint import TintUnavailable
 
@@ -17,10 +18,9 @@ log = logging.getLogger("stfu.web")
 TEMPLATE_DIR = str(Path(__file__).parent.parent / "templates")
 
 
-def create_app(audio, config, nightlight=None, tint=None):
-    """Create Flask app with injected audio/nightlight/tint controllers."""
+def create_app(audio, config, nightlight=None, tint=None, cc=None):
+    """Create Flask app with injected audio/nightlight/tint/cc controllers."""
     app = Flask(__name__, template_folder=TEMPLATE_DIR)
-    cc_queue: queue.Queue = queue.Queue()
 
     mqtt_ws_url = f"{config.mqtt.broker}:{config.mqtt.ws_port}"
 
@@ -33,6 +33,7 @@ def create_app(audio, config, nightlight=None, tint=None):
             version=__version__,
             nightlight_enabled=config.nightlight.enabled,
             tint_enabled=config.tint.enabled,
+            cc_enabled=config.cc.enabled,
             mcp_enabled=config.mcp.enabled,
         )
 
@@ -164,15 +165,14 @@ def create_app(audio, config, nightlight=None, tint=None):
             "poll_interval_ms": config.web.poll_interval_ms,
         })
 
-    @app.route("/cc/stream")
-    def cc_stream():
-        def event_stream():
-            while True:
-                try:
-                    text = cc_queue.get(timeout=30)
-                    yield f"data: {text}\n\n"
-                except queue.Empty:
-                    yield ": keepalive\n\n"
-        return Response(event_stream(), mimetype="text/event-stream")
+    @app.route("/cc", methods=["GET"])
+    def cc_status():
+        if not config.cc.enabled or cc is None:
+            return jsonify({"error": "cc disabled"}), 404
+        try:
+            return jsonify(cc.status())
+        except CCUnavailable as e:
+            log.warning("CC process unreachable: %s", e)
+            return jsonify({"error": "cc process unreachable"}), 503
 
-    return app, cc_queue
+    return app

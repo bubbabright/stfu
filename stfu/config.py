@@ -154,11 +154,15 @@ class CCConfig:
     white_threshold: int = 500
     pixel_threshold: int = 200
     scan_interval: float = 0.5
+    control_port: int = 5104
+    control_timeout: float = 1.0
 
     def __post_init__(self):
         self.white_threshold = _validate_positive("cc.white_threshold", self.white_threshold)
         self.pixel_threshold = _validate_positive("cc.pixel_threshold", self.pixel_threshold)
         self.scan_interval = _validate_positive("cc.scan_interval", self.scan_interval)
+        self.control_port = _validate_range("cc.control_port", self.control_port, 1, 65535)
+        self.control_timeout = _validate_positive("cc.control_timeout", self.control_timeout)
 
         region = self.capture_region
         required_keys = {"top_offset", "height_divisor", "width", "height"}
@@ -253,7 +257,7 @@ VALID_KEYS = {
     "mqtt": {"enabled", "broker", "port", "ws_port", "topic_captions",
              "topic_volume_state", "topic_volume_set"},
     "cc": {"enabled", "tesseract_cmd", "capture_region", "white_threshold",
-           "pixel_threshold", "scan_interval"},
+           "pixel_threshold", "scan_interval", "control_port", "control_timeout"},
     "nightlight": {"enabled", "wnl_path", "helper_port", "helper_timeout"},
     "tint": {"enabled", "alpha_max", "control_port", "control_timeout"},
     "mcp": {"enabled", "name", "transport", "heartbeat_interval", "heartbeat_stale_after"},
@@ -304,7 +308,8 @@ def load_config(path: Path | None = None) -> AppConfig:
                     setattr(section_obj, k, v)
 
     ports = {"web.port": cfg.web.port, "nightlight.helper_port": cfg.nightlight.helper_port,
-              "overlay.status_port": cfg.overlay.status_port, "tint.control_port": cfg.tint.control_port}
+             "overlay.status_port": cfg.overlay.status_port, "tint.control_port": cfg.tint.control_port,
+             "cc.control_port": cfg.cc.control_port}
     seen = {}
     for name, port in ports.items():
         if port in seen:

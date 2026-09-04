@@ -36,6 +36,8 @@ tesseract_cmd = 'C:\Program Files\Tesseract-OCR\tesseract.exe'
 white_threshold = 500
 pixel_threshold = 200
 scan_interval = 0.5
+control_port = 5104     # --cc-only's listen port
+control_timeout = 1.0  # seconds; how long web.py waits on the cc process before 503
 
 [nightlight]
 enabled = true

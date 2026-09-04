@@ -49,6 +49,7 @@ def main():
     parser.add_argument("--no-overlay", action="store_true", help="Disable overlay")
     parser.add_argument("--overlay-only", action="store_true", help="Run standalone overlay only")
     parser.add_argument("--tint-only", action="store_true", help="Run standalone tint overlay only")
+    parser.add_argument("--cc-only", action="store_true", help="Run standalone caption capture only")
     parser.add_argument("--mcp", action="store_true", help="Run MCP server only")
     parser.add_argument(
         "--night-light-helper", action="store_true",
@@ -71,6 +72,8 @@ def main():
         config.log.file = str(Path(config.log.file).with_name("stfu_overlay.log"))
     elif args.tint_only:
         config.log.file = str(Path(config.log.file).with_name("stfu_tint.log"))
+    elif args.cc_only:
+        config.log.file = str(Path(config.log.file).with_name("stfu_cc.log"))
 
     setup_logging(config)
     log = logging.getLogger("stfu")
@@ -115,6 +118,15 @@ def main():
         run_tint(config)
         return
 
+    # Standalone caption capture mode — no tkinter dependency, just mss + Tesseract.
+    # Runs as its own process with its own singleton lock and Flask control server.
+    if args.cc_only:
+        from stfu.captions import run_cc
+
+        log.info("Starting caption capture")
+        run_cc(config)
+        return
+
     # Normal mode
     from stfu.config import acquire_singleton_lock
 
@@ -126,6 +138,7 @@ def main():
         sys.exit(1)
 
     from stfu.audio import AudioController
+    from stfu.captions import HTTPCCClient
     from stfu.web import create_app
     from stfu.nightlight import HTTPNightlightClient
     from stfu.tint import HTTPTintClient
@@ -140,8 +153,12 @@ def main():
     if config.tint.enabled:
         tint = HTTPTintClient(config)
 
+    cc = None
+    if config.cc.enabled:
+        cc = HTTPCCClient(config)
+
     # Flask web server
-    app, cc_queue = create_app(audio, config, nightlight=nightlight, tint=tint)
+    app = create_app(audio, config, nightlight=nightlight, tint=tint, cc=cc)
 
     def _run_flask():
         try:
@@ -172,18 +189,6 @@ def main():
             log.info("Overlay started")
         except Exception as e:
             log.warning("Overlay unavailable: %s", e)
-
-    # Caption capture
-    if config.cc.enabled:
-        try:
-            from stfu.captions import CaptionCapture
-
-            cc = CaptionCapture(config)
-            cc_thread = threading.Thread(target=cc.start, daemon=True)
-            cc_thread.start()
-            log.info("Caption capture started")
-        except Exception as e:
-            log.warning("Captions unavailable: %s", e)
 
     # Keep alive
     try:
